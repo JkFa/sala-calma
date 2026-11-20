@@ -1,13 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sala-calma</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>%APP_NAME%</title>
+    <meta name="description" content="%APP_DESCRIPTION%" />
+    <meta name="theme-color" content="%THEME_COLOR%" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1916" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="icons/logo.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="%APP_NAME%" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="referrer" content="no-referrer" />
   </head>
   <body>
     <div id="app"></div>
+    <noscript>O %APP_NAME% precisa de JavaScript ligado para medir o som da sala.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
