@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isExportedLesson, toCSV, toExport, fileBase } from '../src/lib/exporting'
-import { aggregate, byTurma, byWeekday, dedupe, summarize } from '../src/lib/school'
+import { aggregate, byTurma, byWeekday, dedupe, summarize, weekdayOrder } from '../src/lib/school'
 import { finalize, newSession, openSegment, pushLevel } from '../src/lib/session'
 
 const T = { calmoAte: 55, altoDesde: 65, esforcoVocal: 43 }
@@ -54,6 +54,9 @@ describe('painel da escola', () => {
   })
   it('agrega por dia da semana', () => {
     expect(aggregate(ls, byWeekday).map((g) => g.key).sort()).toEqual(['seg', 'ter'])
+  })
+  it('ordena dias da semana a partir de segunda', () => {
+    expect(aggregate(ls, byWeekday, weekdayOrder).map((g) => g.key)).toEqual(['seg', 'ter'])
   })
   it('remove duplicatas e resume', () => {
     expect(dedupe([...ls, ls[0]])).toHaveLength(3)

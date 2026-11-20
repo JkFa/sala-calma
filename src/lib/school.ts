@@ -25,7 +25,12 @@ export const byTurma: KeyFn = (l) => l.turma.trim() || '(sem turma)'
 export const byWeekday: KeyFn = (l) => WEEKDAYS[new Date(l.inicio).getDay()]
 export const byHour: KeyFn = (l) => `${String(new Date(l.inicio).getHours()).padStart(2, '0')}h`
 
-export function aggregate(lessons: ExportedLesson[], keyFn: KeyFn): Group[] {
+/** Ordem cronológica para dia e horário. */
+export const weekdayOrder = (a: Group, b: Group) =>
+  ((WEEKDAYS.indexOf(a.key) + 6) % 7) - ((WEEKDAYS.indexOf(b.key) + 6) % 7)
+export const keyOrder = (a: Group, b: Group) => a.key.localeCompare(b.key)
+
+export function aggregate(lessons: ExportedLesson[], keyFn: KeyFn, order?: (a: Group, b: Group) => number): Group[] {
   const acc = new Map<string, { aulas: number; energy: number; min: number; alto: number; vocal: number }>()
   for (const l of lessons) {
     const m = l.resumo.minutosMedidos
@@ -48,7 +53,7 @@ export function aggregate(lessons: ExportedLesson[], keyFn: KeyFn): Group[] {
       pctAlto: Math.round((a.alto / a.min) * 1000) / 10,
       vocalPorHora: Math.round((a.vocal / a.min) * 60 * 10) / 10,
     }))
-    .sort((x, y) => y.leq - x.leq)
+    .sort(order ?? ((x, y) => y.leq - x.leq))
 }
 
 export interface SchoolSummary {
