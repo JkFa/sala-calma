@@ -97,7 +97,9 @@ export function designAWeighting(fs: number): Biquad[] {
 export class BiquadCascade {
   private z1: Float64Array
   private z2: Float64Array
-  constructor(private sections: Biquad[]) {
+  private sections: Biquad[]
+  constructor(sections: Biquad[]) {
+    this.sections = sections
     this.z1 = new Float64Array(sections.length)
     this.z2 = new Float64Array(sections.length)
   }
