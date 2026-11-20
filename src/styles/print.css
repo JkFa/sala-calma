@@ -1,0 +1,79 @@
+@page {
+  size: A4;
+  margin: 16mm 14mm;
+}
+
+@media print {
+  :root,
+  :root[data-theme='dark'] {
+    --paper: #fff;
+    --paper-raised: #fff;
+    --paper-sunk: #eee;
+    --ink: #111;
+    --ink-soft: #444;
+    --rule: #bbb;
+    --rule-strong: #888;
+    --calmo-text: #22593a;
+    --atencao-text: #6f4600;
+    --alto-text: #8e2a1a;
+    color-scheme: light;
+  }
+  body {
+    font-size: 10.5pt;
+    background: #fff;
+  }
+  .topbar,
+  .tabs,
+  .foot,
+  .skip,
+  .no-print,
+  .update,
+  .exports,
+  .live-dot {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .shell {
+    display: block;
+  }
+  main {
+    padding: 0;
+    max-width: none;
+  }
+  h1 {
+    font-size: 22pt;
+  }
+  h2 {
+    font-size: 13pt;
+    margin-top: 0;
+  }
+  section {
+    margin-block: 6mm;
+    break-inside: avoid;
+  }
+  .chart,
+  .ledger tr,
+  .figures {
+    break-inside: avoid;
+  }
+  .figures {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .figures > div + div {
+    padding-left: 3mm;
+    border-left: 1px solid var(--rule);
+  }
+  .bandbar-seg,
+  .hbar-fill,
+  .heat td,
+  .chart .zone-alto,
+  .chart .zone-atencao {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  a {
+    text-decoration: none;
+  }
+}

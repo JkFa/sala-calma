@@ -1,104 +1,145 @@
-import { useState } from 'preact/hooks'
-import heroImg from './assets/hero.png'
-import preactLogo from './assets/preact.svg'
-import viteLogo from './assets/vite.svg'
-import './app.css'
+import { useEffect } from 'preact/hooks'
+import { APP } from './config'
+import { lesson } from './state/lesson'
+import { applyUpdate, isStandalone, pwa } from './state/pwa'
+import { useStore } from './state/store'
+import { IconLight, IconMic, IconNotebook, IconSchool, IconSliders, Logo } from './ui/icons'
+import { go, useRoute } from './ui/router'
+import { Home } from './pages/Home'
+import { Measure } from './pages/Measure'
+import { Light } from './pages/Light'
+import { Lessons } from './pages/Lessons'
+import { LessonReport } from './pages/LessonReport'
+import { Calibrate } from './pages/Calibrate'
+import { SettingsPage } from './pages/Settings'
+import { School } from './pages/School'
+import { Privacy } from './pages/Privacy'
+
+const NAV = [
+  { path: 'medir', label: 'Medir', Icon: IconMic },
+  { path: 'semaforo', label: 'Semáforo', Icon: IconLight },
+  { path: 'aulas', label: 'Aulas', Icon: IconNotebook },
+  { path: 'escola', label: 'Escola', Icon: IconSchool },
+  { path: 'ajustes', label: 'Ajustes', Icon: IconSliders },
+]
+
+const TITLES: Record<string, string> = {
+  '': 'Medidor de ruído para a sala de aula',
+  medir: 'Medir',
+  semaforo: 'Semáforo',
+  aulas: 'Aulas',
+  aula: 'Relatório da aula',
+  calibrar: 'Calibrar',
+  ajustes: 'Ajustes',
+  escola: 'Escola',
+  privacidade: 'Privacidade',
+}
+
+function UpdateBanner() {
+  const p = useStore(pwa)
+  const l = useStore(lesson)
+  if (!p.needRefresh || l.session) return null
+  return (
+    <div class="update" role="status">
+      <span>Há uma versão nova do app.</span>
+      <button class="btn btn-quiet" onClick={applyUpdate}>
+        Atualizar agora
+      </button>
+    </div>
+  )
+}
+
+function LiveDot() {
+  const l = useStore(lesson)
+  if (!l.session) return null
+  return (
+    <a href="#/medir" class="live-dot" aria-label="Aula em andamento: voltar para a medição">
+      <span class={`dot ${l.status === 'medindo' ? 'on' : ''}`} />
+      {l.status === 'medindo' ? 'medindo' : l.status === 'pausado' ? 'pausada' : 'retomando'}
+    </a>
+  )
+}
 
 export function App() {
-  const [count, setCount] = useState(0)
+  const route = useRoute()
+  let page = route[0] ?? ''
+  // Aberto como app instalado: começa direto na medição.
+  if (page === '' && isStandalone && !sessionStorage.getItem('viu-inicio')) {
+    sessionStorage.setItem('viu-inicio', '1')
+    go('medir')
+    page = 'medir'
+  }
+
+  useEffect(() => {
+    document.title = `${TITLES[page] ?? APP.name} · ${APP.name}`
+  }, [page])
+
+  if (page === 'semaforo') return <Light />
+
+  let content
+  switch (page) {
+    case 'medir':
+      content = <Measure />
+      break
+    case 'aulas':
+      content = <Lessons />
+      break
+    case 'aula':
+      content = <LessonReport id={route[1] ?? ''} />
+      break
+    case 'calibrar':
+      content = <Calibrate />
+      break
+    case 'ajustes':
+      content = <SettingsPage />
+      break
+    case 'escola':
+      content = <School />
+      break
+    case 'privacidade':
+      content = <Privacy />
+      break
+    default:
+      content = <Home />
+  }
 
   return (
-    <>
-      <section id="center">
-        <div class="hero">
-          <img src={heroImg} class="base" width="170" height="179" alt="" />
-          <img src={preactLogo} class="framework" alt="Preact logo" />
-          <img src={viteLogo} class="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/app.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          class="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div class="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg class="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img class="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://preactjs.com/" target="_blank">
-                <img class="button-icon" src={preactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg class="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div class="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div class={`shell page-${page || 'inicio'}`}>
+      <a
+        href="#conteudo"
+        class="skip"
+        onClick={(e) => {
+          e.preventDefault()
+          document.getElementById('conteudo')?.focus()
+        }}
+      >
+        Pular para o conteúdo
+      </a>
+      <header class="topbar">
+        <a href="#/" class="brand">
+          <Logo size={30} />
+          <span>{APP.name}</span>
+        </a>
+        <LiveDot />
+      </header>
+      <nav class="tabs" aria-label="Seções">
+        {NAV.map(({ path, label, Icon }) => (
+          <a key={path} href={`#/${path}`} class="tab" aria-current={page === path || (path === 'aulas' && page === 'aula') ? 'page' : undefined}>
+            <Icon />
+            <span>{label}</span>
+          </a>
+        ))}
+      </nav>
+      <main id="conteudo" tabIndex={-1}>
+        <UpdateBanner />
+        {content}
+      </main>
+      <footer class="foot small soft">
+        <p>
+          Indicador de exposição ao ruído. Não substitui avaliação de fonoaudiologia ou de medicina do trabalho.{' '}
+          <a href="#/privacidade">Privacidade</a>
+        </p>
+      </footer>
+    </div>
   )
 }

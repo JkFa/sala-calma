@@ -1,0 +1,326 @@
+/*
+ * Sala Calma — sistema visual
+ *
+ * Papel quente, tinta quase preta, um acento verde-musgo.
+ * Semáforo: verde, âmbar e vermelho-tijolo, sempre com texto e forma.
+ * Contrastes verificados para WCAG AA (ver README › Design).
+ */
+:root {
+  --paper: #f3eee4;
+  --paper-raised: #fbf8f2;
+  --paper-sunk: #e8e0d0;
+  --ink: #221e19;
+  --ink-soft: #5a5246;
+  --rule: #d6cbb6;
+  --rule-strong: #a3947b;
+  --accent: #46622f;
+  --accent-ink: #fbf8f2;
+  --focus: #1f5fbf;
+
+  /* Faixas: preenchimento + texto sobre o preenchimento + texto sobre o papel */
+  --calmo: #2c6b43;
+  --calmo-on: #fbf8f2;
+  --calmo-text: #2c6b43;
+  --atencao: #e2a72e;
+  --atencao-on: #221e19;
+  --atencao-text: #855400;
+  --alto: #ad3726;
+  --alto-on: #fbf8f2;
+  --alto-text: #a3321f;
+  --gap: #8c826f;
+
+  --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-ui: 'IBM Plex Sans', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --step--1: clamp(0.84rem, 0.82rem + 0.1vw, 0.9rem);
+  --step-0: clamp(1rem, 0.97rem + 0.15vw, 1.08rem);
+  --step-1: clamp(1.2rem, 1.12rem + 0.4vw, 1.4rem);
+  --step-2: clamp(1.5rem, 1.3rem + 0.9vw, 2rem);
+  --step-3: clamp(1.9rem, 1.5rem + 2vw, 3rem);
+  --step-4: clamp(2.6rem, 1.8rem + 4vw, 4.6rem);
+
+  --radius-s: 4px;
+  --radius-m: 10px;
+  --touch: 48px;
+  --measure: 38rem;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #1b1916;
+    --paper-raised: #25221e;
+    --paper-sunk: #12100e;
+    --ink: #ede6d8;
+    --ink-soft: #b5aa95;
+    --rule: #3b362e;
+    --rule-strong: #6b6253;
+    --accent: #a5c487;
+    --accent-ink: #1b1916;
+    --focus: #8ab4ff;
+    --calmo: #2f7a4b;
+    --calmo-on: #f5f1e8;
+    --calmo-text: #86c897;
+    --atencao: #e5b046;
+    --atencao-on: #1b1916;
+    --atencao-text: #eabb5c;
+    --alto: #b8402e;
+    --alto-on: #f5f1e8;
+    --alto-text: #f2917c;
+    --gap: #7d7462;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #1b1916;
+  --paper-raised: #25221e;
+  --paper-sunk: #12100e;
+  --ink: #ede6d8;
+  --ink-soft: #b5aa95;
+  --rule: #3b362e;
+  --rule-strong: #6b6253;
+  --accent: #a5c487;
+  --accent-ink: #1b1916;
+  --focus: #8ab4ff;
+  --calmo: #2f7a4b;
+  --calmo-on: #f5f1e8;
+  --calmo-text: #86c897;
+  --atencao: #e5b046;
+  --atencao-on: #1b1916;
+  --atencao-text: #eabb5c;
+  --alto: #b8402e;
+  --alto-on: #f5f1e8;
+  --alto-text: #f2917c;
+  --gap: #7d7462;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5em;
+  font-variation-settings: 'SOFT' 50, 'WONK' 0;
+}
+h1 {
+  font-size: var(--step-3);
+}
+h2 {
+  font-size: var(--step-2);
+}
+h3 {
+  font-size: var(--step-1);
+}
+p {
+  margin: 0 0 1em;
+  max-width: var(--measure);
+}
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration-thickness: 2px;
+}
+small,
+.small {
+  font-size: var(--step--1);
+}
+.soft {
+  color: var(--ink-soft);
+}
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 2rem 0;
+}
+
+/* ---------- Botões e campos ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  min-height: var(--touch);
+  padding: 0.6em 1.15em;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--ink);
+  font: 500 var(--step-0) / 1.2 var(--font-ui);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.btn:hover {
+  background: var(--paper-sunk);
+}
+.btn svg {
+  flex: none;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-primary:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+.btn-quiet {
+  border-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding-inline: 0.4em;
+}
+.btn-danger {
+  border-color: var(--alto-text);
+  color: var(--alto-text);
+}
+.btn-big {
+  min-height: 60px;
+  font-size: var(--step-1);
+  padding-inline: 1.5em;
+}
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+}
+.field {
+  margin-bottom: 1.1rem;
+}
+.field .hint {
+  display: block;
+  font-weight: 400;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+input[type='text'],
+input[type='number'],
+select {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0.5em 0.7em;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: var(--radius-s);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: 400 var(--step-0) / 1.3 var(--font-ui);
+}
+input:focus-visible,
+select:focus-visible {
+  border-color: var(--focus);
+}
+input[type='number'] {
+  font-variant-numeric: tabular-nums;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: var(--touch);
+  font-weight: 400;
+  cursor: pointer;
+}
+.check input {
+  width: 1.4rem;
+  height: 1.4rem;
+  accent-color: var(--accent);
+}
+
+/* ---------- Avisos ---------- */
+
+.note {
+  border-left: 3px solid var(--rule-strong);
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  margin: 1rem 0;
+  max-width: var(--measure);
+}
+.note-warn {
+  border-left-color: var(--atencao);
+}
+.note-error {
+  border-left-color: var(--alto);
+}
+.note p:last-child {
+  margin-bottom: 0;
+}
+.tag {
+  display: inline-block;
+  font-size: var(--step--1);
+  font-weight: 500;
+  padding: 0.05em 0.5em;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-cal {
+  color: var(--calmo-text);
+}
+.tag-rel {
+  color: var(--atencao-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
