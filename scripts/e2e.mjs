@@ -39,7 +39,7 @@ const browser = await chromium.launch({
 })
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'pt-BR' })
 await ctx.grantPermissions(['microphone'], { origin: URL.slice(0, -1) })
-const page = await ctx.newPage()
+let page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
@@ -341,6 +341,67 @@ try {
   })
 
   if (SHOTS) await shoot('escola')
+
+  await step('backup: baixa aqui e restaura em "outro aparelho" sem duplicar nem trazer a calibração', async () => {
+    await page.goto(URL + '#/backup')
+    await page.waitForSelector('h1:has-text("Backup")')
+    assert.match(await page.textContent('.backup'), /2 aulas e 1 sala vazia/)
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Baixar backup")')])
+    assert.match(dl.suggestedFilename(), /^sala-calma_backup_\d{4}-\d\d-\d\d\.json$/)
+    const body = (await import('node:fs')).readFileSync(await dl.path(), 'utf8')
+    const b = JSON.parse(body)
+    assert.equal(b.formato, 'sala-calma/backup')
+    assert.equal(b.aulas.length, 2)
+    assert.equal(b.salas.length, 1)
+    assert.equal(b.ajustes.calibration.offset, 104.2)
+    assert.match(await page.textContent('.backup'), /Último backup:/)
+    if (SHOTS) await shoot('backup', [390])
+
+    // Outro aparelho: navegador limpo, com a própria calibração.
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-BR' })
+    const p2 = await ctx2.newPage()
+    p2.on('pageerror', (e) => errors.push('[aparelho 2] ' + e.message))
+    await p2.goto(URL + '#/backup')
+    await p2.evaluate(() =>
+      localStorage.setItem('sala-calma:ajustes', JSON.stringify({ calibration: { offset: 97.5, method: 'medidor', margin: 3, date: new Date().toISOString(), device: 'aparelho 2' } })),
+    )
+    await p2.reload()
+    await p2.waitForSelector('h1:has-text("Backup")')
+    // Arquivo errado: um arquivo de aula (para a coordenação)
+    await p2.setInputFiles('#backup-file', { name: 'aula.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ formato: 'sala-calma/aula' })) })
+    await p2.waitForSelector('.note-error:has-text("não é um backup")')
+    // Backup chegando como .txt (Android)
+    const file = { name: 'sala-calma_backup.txt', mimeType: 'text/plain', buffer: Buffer.from(body) }
+    await p2.setInputFiles('#backup-file', file)
+    await p2.waitForSelector('.restore-plan')
+    const prev = await p2.textContent('.restore-plan')
+    assert.match(prev, /2 aulas novas/)
+    assert.match(prev, /1 sala vazia nova/)
+    assert.equal(await p2.isChecked('text=Usar a calibração do backup'), false)
+    if (SHOTS) {
+      const keep = page
+      page = p2
+      await shoot('restaurar', [390])
+      page = keep
+    }
+    await p2.click('.restore-plan button:has-text("Restaurar")')
+    await p2.waitForSelector('.note:has-text("2 aulas restauradas")')
+    const cal = await p2.evaluate(() => JSON.parse(localStorage.getItem('sala-calma:ajustes')).calibration.offset)
+    assert.equal(cal, 97.5, 'a calibração deste aparelho foi mantida')
+    await p2.goto(URL + '#/aulas')
+    await p2.waitForSelector('.ledger tbody tr')
+    assert.equal(await p2.locator('.ledger tbody tr').count(), 2)
+    // Relatório restaurado abre, com a calibração original da aula (dB(A))
+    await p2.click('.ledger tbody tr a')
+    await p2.waitForSelector('.report h1')
+    assert.match(await p2.textContent('.report-head'), /calibrado/)
+    // Restaurar de novo não duplica
+    await p2.goto(URL + '#/backup')
+    await p2.setInputFiles('#backup-file', file)
+    await p2.waitForSelector('.restore-plan')
+    assert.match(await p2.textContent('.restore-plan'), /0 aulas novas; 2 já estão neste aparelho/)
+    await ctx2.close()
+  })
 
   await step('abre offline depois da primeira visita', async () => {
     await ctx.setOffline(true)

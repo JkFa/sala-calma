@@ -3,6 +3,8 @@ import { listRooms, listSessions } from '../lib/db'
 import { appUrl, bundle, bundleName, SHARE_MESSAGE, shareFile, type Period } from '../lib/share'
 import type { RoomMeasurement } from '../lib/room'
 import { APP } from '../config'
+import { needsBackupReminder } from '../lib/backup'
+import { settings } from '../state/settings'
 import { IconSend } from '../ui/icons'
 
 const PERIODS: { id: Period; label: string }[] = [
@@ -129,6 +131,12 @@ export function Lessons() {
     <div class="lessons">
       <LessonsTabs current="lista" />
       <h1>Aulas</h1>
+      {rows.length > 0 && needsBackupReminder(rows.length, settings.get().ultimoBackup) && (
+        <p class="note small">
+          As aulas ficam só neste aparelho e {settings.get().ultimoBackup ? 'o último backup tem mais de 30 dias' : 'ainda não há backup'}.{' '}
+          <a href="#/backup">Fazer backup agora</a>
+        </p>
+      )}
       {rows.length === 0 ? (
         <div class="empty">
           <p>Nenhuma aula medida neste aparelho ainda.</p>

@@ -132,8 +132,20 @@ export function SettingsPage() {
       </section>
 
       <section>
+        <h2>Backup e troca de aparelho</h2>
+        <p>
+          {s.ultimoBackup
+            ? `Último backup: ${new Date(s.ultimoBackup).toLocaleDateString('pt-BR')}.`
+            : 'Nenhum backup feito ainda. As aulas ficam só neste aparelho.'}{' '}
+          <a href="#/backup">Fazer backup ou restaurar</a>
+        </p>
+      </section>
+
+      <section>
         <h2>Dados deste aparelho</h2>
-        <p class="small">Apaga aulas, calibração e ajustes. Não dá para desfazer.</p>
+        <p class="small">
+          Apaga aulas, salas vazias, calibração e ajustes. Não dá para desfazer: faça um <a href="#/backup">backup</a> antes.
+        </p>
         <button class="btn btn-danger" onClick={wipeAll} disabled={!!l.session}>
           {wipe ? 'Toque de novo para apagar tudo' : 'Apagar todos os dados'}
         </button>

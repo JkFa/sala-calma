@@ -19,7 +19,8 @@ export function Privacy() {
       </ul>
       <p>
         Tudo isso fica no armazenamento deste navegador, neste aparelho. Para apagar: Ajustes › Apagar todos os dados, ou limpar os
-        dados do site nas configurações do navegador.
+        dados do site nas configurações do navegador. O backup (Ajustes › Backup) gera um arquivo com esses mesmos dados; ele só vai
+        para onde você mandar.
       </p>
 
       <h2>O que nunca é coletado</h2>

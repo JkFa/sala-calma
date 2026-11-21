@@ -235,6 +235,8 @@ export async function startLesson(turma: string, disciplina: string) {
   lastLevelAt = Date.now()
   lesson.set({ status: 'medindo' })
   await saveSession(s)
+  // Pede ao navegador para não apagar os dados sozinho (Chrome/Firefox/Safari).
+  void navigator.storage?.persist?.().catch(() => {})
   startTimers()
   void requestWakeLock()
   void checkBattery()

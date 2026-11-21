@@ -1206,3 +1206,29 @@ section {
   padding-left: 0.8rem;
   margin-top: 0.6rem;
 }
+
+/* ---------- Backup ---------- */
+
+.back-link {
+  margin: -0.5rem 0 0.5rem -0.4rem;
+}
+.restore-plan {
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-s);
+  padding: 1rem 1.1rem 0.3rem;
+  margin: 1rem 0;
+  max-width: 36rem;
+}
+.restore-plan ul {
+  padding-left: 1.1rem;
+}
+.calib-warn {
+  margin: -0.2rem 0 0.6rem 2.2rem;
+}
+.storage {
+  padding-left: 1.1rem;
+  max-width: var(--measure);
+}
+.storage li {
+  margin-bottom: 0.4rem;
+}
