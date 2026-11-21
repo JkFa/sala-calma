@@ -4,6 +4,7 @@
  */
 import type { Report, Session, Thresholds, Band } from './session'
 import { bandOf, computeReport, perSecond } from './session'
+import { activityAt, statsByActivity, type ActivityId, type ActivityKey } from './activities'
 
 export const EXPORT_FORMAT = 'sala-calma/aula'
 export const EXPORT_VERSION = 1
@@ -30,6 +31,10 @@ export interface ExportedLesson {
   }
   /** [segundos desde o início, nível] — null = lacuna. */
   serie: [number, number | null][]
+  /** Momentos marcados: [segundos desde o início, tipo]. Opcional (arquivos antigos não têm). */
+  marcas?: [number, ActivityId][]
+  /** Resumo por momento da aula. Opcional. */
+  atividades?: Partial<Record<ActivityKey, { minutos: number; minutosAlto: number; leq: number; minutosEsforcoVocal: number }>>
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10
@@ -64,6 +69,17 @@ export function toExport(session: Session, report: Report = computeReport(sessio
       Math.round((p.t - session.startedAt) / 1000),
       p.v,
     ]),
+    ...(session.marks?.length
+      ? {
+          marcas: session.marks.map((m) => [Math.round((m.t - session.startedAt) / 1000), m.kind] as [number, ActivityId]),
+          atividades: Object.fromEntries(
+            statsByActivity(session).map((a) => [
+              a.kind,
+              { minutos: min(a.measuredMs), minutosAlto: min(a.bandMs.alto), leq: r1(a.leq), minutosEsforcoVocal: min(a.vocalMs) },
+            ]),
+          ),
+        }
+      : {}),
   }
 }
 
@@ -71,11 +87,13 @@ const BAND_LABEL: Record<Band, string> = { calmo: 'calmo', atencao: 'atencao', a
 
 export function toCSV(session: Session): string {
   const unit = session.calibration ? 'nivel_dBA' : 'nivel_relativo'
-  const rows = [`horario;${unit};faixa`]
+  const rows = [`horario;${unit};faixa;momento`]
   for (const p of perSecond(session)) {
     const t = new Date(p.t).toISOString()
-    if (p.v === null) rows.push(`${t};;sem_medicao`)
-    else rows.push(`${t};${p.v.toFixed(1).replace('.', ',')};${BAND_LABEL[bandOf(p.v, session.thresholds)]}`)
+    const m = activityAt(session.marks, p.t)
+    const act = m === 'sem-marcacao' ? '' : m
+    if (p.v === null) rows.push(`${t};;sem_medicao;${act}`)
+    else rows.push(`${t};${p.v.toFixed(1).replace('.', ',')};${BAND_LABEL[bandOf(p.v, session.thresholds)]};${act}`)
   }
   return rows.join('\r\n') + '\r\n'
 }

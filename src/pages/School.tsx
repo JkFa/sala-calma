@@ -4,7 +4,7 @@
  */
 import { useMemo, useState } from 'preact/hooks'
 import { isExportedLesson, type ExportedLesson } from '../lib/exporting'
-import { aggregate, byHour, byTurma, byWeekday, dedupe, keyOrder, summarize, weekdayOrder, WEEKDAYS, type Group } from '../lib/school'
+import { aggregateActivities, aggregate, byHour, byTurma, byWeekday, dedupe, keyOrder, summarize, weekdayOrder, WEEKDAYS, type Group } from '../lib/school'
 import { bandOf, type Thresholds } from '../lib/session'
 import { HBar } from '../ui/charts'
 import { dateShort, dec } from '../ui/format'
@@ -19,6 +19,55 @@ const VERDICT_SHORT: Record<RoomVerdict, { label: string; cls: string }> = {
   'na-margem': { label: 'no limite (margem)', cls: 'text-atencao' },
   acima: { label: 'acima', cls: 'text-alto' },
   'bem-acima': { label: 'bem acima', cls: 'text-alto' },
+}
+
+import { ACTIVITY_LABEL } from '../lib/activities'
+
+/** Momentos da aula somados entre as aulas que tiveram marcação. */
+function Activities({ lessons }: { lessons: ExportedLesson[] }) {
+  const gs = aggregateActivities(lessons)
+  if (!gs.length) return null
+  const n = lessons.filter((l) => l.atividades).length
+  const maxPct = Math.max(1, ...gs.map((g) => g.pctAlto))
+  return (
+    <section class="school-group">
+      <h2>Por momento da aula</h2>
+      <p class="small soft">
+        {n} de {lessons.length} aulas tiveram os momentos marcados pelo professor. Mostra que tipo de atividade pesa mais no ruído.
+      </p>
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th scope="col">Momento</th>
+            <th scope="col" class="r">
+              Aulas
+            </th>
+            <th scope="col" class="r">
+              Tempo
+            </th>
+            <th scope="col">Tempo na faixa alta</th>
+            <th scope="col" class="r">
+              Esforço vocal
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {gs.map((g) => (
+            <tr key={g.kind}>
+              <th scope="row">{ACTIVITY_LABEL[g.kind]}</th>
+              <td class="r num">{g.aulas}</td>
+              <td class="r num">{g.minutos} min</td>
+              <td class="bar-cell">
+                <HBar value={g.pctAlto} max={maxPct} band="alto" />
+                <span class="num">{dec(g.pctAlto, 0)}%</span>
+              </td>
+              <td class="r num">{dec(g.vocalPorHora, 0)} min/h</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
 }
 
 /** Salas vazias: problema do prédio, não da turma. */
@@ -276,6 +325,7 @@ export function School() {
           <Heat lessons={base} />
           <GroupTable title="Por dia" groups={aggregate(base, byWeekday, weekdayOrder)} t={t} calibrated={calibrated} />
           <GroupTable title="Por horário" groups={aggregate(base, byHour, keyOrder)} t={t} calibrated={calibrated} />
+          <Activities lessons={lessons} />
           </>
           )}
           {rooms.length > 0 && <Rooms rooms={rooms} />}

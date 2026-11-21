@@ -27,8 +27,8 @@ describe('exportação', () => {
   })
   it('CSV com vírgula decimal e faixa', () => {
     const csv = toCSV(s).split('\r\n')
-    expect(csv[0]).toBe('horario;nivel_dBA;faixa')
-    expect(csv[1]).toBe('2026-03-03T13:10:00.000Z;62,4;atencao')
+    expect(csv[0]).toBe("horario;nivel_dBA;faixa;momento")
+    expect(csv[1]).toBe("2026-03-03T13:10:00.000Z;62,4;atencao;")
   })
   it('nome de arquivo sem acentos', () => {
     expect(fileBase(s)).toMatch(/^aula_2026-03-03_\d\dh10_7-b-ciencias$/)
@@ -61,5 +61,44 @@ describe('painel da escola', () => {
   it('remove duplicatas e resume', () => {
     expect(dedupe([...ls, ls[0]])).toHaveLength(3)
     expect(summarize(ls)).toMatchObject({ aulas: 3, calibradas: 3, misto: false })
+  })
+})
+
+import { addMark } from '../src/lib/activities'
+import { aggregateActivities } from '../src/lib/school'
+
+describe('momentos na exportação e na escola', () => {
+  function marked(turma: string, iso: string) {
+    const t0 = Date.parse(iso)
+    const s = newSession({ calibration: cal, thresholds: T, turma, now: t0 })
+    const seg = openSegment(s, t0, 'pausa')
+    s.marks = addMark([], 'explicacao', t0)
+    for (let i = 0; i < 600 * 8; i++) pushLevel(seg, 52 - 100) // 10 min explicação
+    s.marks = addMark(s.marks, 'grupo', t0 + 600_000)
+    for (let i = 0; i < 600 * 8; i++) pushLevel(seg, 70 - 100) // 10 min grupo
+    finalize(s, t0 + 1_200_000)
+    return s
+  }
+  it('JSON leva marcas e resumo por momento; CSV leva a coluna', () => {
+    const s = marked('7º A', '2026-03-03T13:00:00Z')
+    const e = toExport(s)
+    expect(e.marcas).toEqual([[0, 'explicacao'], [600, 'grupo']])
+    expect(e.atividades?.grupo).toMatchObject({ minutos: 10, minutosAlto: 10, leq: 70 })
+    expect(e.atividades?.explicacao).toMatchObject({ minutos: 10, minutosAlto: 0 })
+    const csv = toCSV(s).split('\r\n')
+    expect(csv[1].endsWith(';explicacao')).toBe(true)
+    expect(csv[700].endsWith(';grupo')).toBe(true)
+  })
+  it('aula sem marcação não leva campos novos (formato antigo)', () => {
+    const e = toExport(lesson('8º', '2026-03-03T13:10:00Z', 60, 30))
+    expect(e.marcas).toBeUndefined()
+    expect(e.atividades).toBeUndefined()
+  })
+  it('escola agrega momentos de várias aulas', () => {
+    const ls = [marked('7º A', '2026-03-03T13:00:00Z'), marked('8º B', '2026-03-04T13:00:00Z')].map((s) => toExport(s))
+    const g = aggregateActivities([...ls, toExport(lesson('9º', '2026-03-05T13:00:00Z', 60, 30))])
+    expect(g.map((x) => x.kind)).toEqual(['explicacao', 'grupo'])
+    expect(g[1]).toMatchObject({ aulas: 2, minutos: 20, pctAlto: 100 })
+    expect(g[0].pctAlto).toBe(0)
   })
 })

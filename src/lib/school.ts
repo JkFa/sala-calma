@@ -86,3 +86,40 @@ export function dedupe(lessons: ExportedLesson[]): ExportedLesson[] {
     return true
   })
 }
+
+import { ACTIVITIES, type ActivityId } from './activities'
+
+export interface ActivityGroup {
+  kind: ActivityId
+  aulas: number
+  minutos: number
+  pctAlto: number
+  vocalPorHora: number
+}
+
+/** Soma os momentos marcados de todas as aulas (só as que têm marcação). */
+export function aggregateActivities(lessons: ExportedLesson[]): ActivityGroup[] {
+  const acc = new Map<ActivityId, { aulas: number; min: number; alto: number; vocal: number }>()
+  for (const l of lessons) {
+    for (const a of ACTIVITIES) {
+      const x = l.atividades?.[a.id]
+      if (!x || !(x.minutos > 0)) continue
+      const g = acc.get(a.id) ?? { aulas: 0, min: 0, alto: 0, vocal: 0 }
+      g.aulas++
+      g.min += x.minutos
+      g.alto += x.minutosAlto
+      g.vocal += x.minutosEsforcoVocal
+      acc.set(a.id, g)
+    }
+  }
+  return ACTIVITIES.filter((a) => acc.has(a.id)).map((a) => {
+    const g = acc.get(a.id)!
+    return {
+      kind: a.id,
+      aulas: g.aulas,
+      minutos: Math.round(g.min),
+      pctAlto: Math.round((g.alto / g.min) * 1000) / 10,
+      vocalPorHora: Math.round((g.vocal / g.min) * 60 * 10) / 10,
+    }
+  })
+}
