@@ -20,6 +20,8 @@ export interface Settings {
   ultimaDisciplina: string
   /** Já viu a instrução de posicionamento. */
   viuDicaMesa: boolean
+  /** Data (ISO) do último backup salvo ou enviado. */
+  ultimoBackup: string | null
 }
 
 const KEY = 'sala-calma:ajustes'
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ultimaTurma: '',
   ultimaDisciplina: '',
   viuDicaMesa: false,
+  ultimoBackup: null,
 }
 
 function load(): Settings {
