@@ -35,8 +35,8 @@ export function Calibrate() {
     setPhase('medindo')
     setProgress(0)
     try {
-      const dbfs = await measureForCalibration(SECONDS, (f) => setProgress(Math.min(1, f)))
-      const c = makeCalibration(dbfs, refValue, method, new Date(), deviceLabel())
+      const { dbfs, mic } = await measureForCalibration(SECONDS, (f) => setProgress(Math.min(1, f)))
+      const c = { ...makeCalibration(dbfs, refValue, method, new Date(), deviceLabel()), ...(mic ? { mic } : {}) }
       settings.set({ calibration: c })
       setPhase('feito')
     } catch (e) {

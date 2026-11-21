@@ -1523,3 +1523,25 @@ section {
 .light-goal {
   padding-top: 0.6rem;
 }
+
+/* ---------- Microfone: escolha e teste ---------- */
+.mic-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+.mic-test p {
+  margin: 0.4rem 0 0;
+}
+.mic-test-bar {
+  height: 14px;
+  border-radius: 2px;
+  background: var(--paper-sunk);
+  overflow: hidden;
+  max-width: 30rem;
+}
+.mic-test-bar span {
+  display: block;
+  height: 100%;
+  background: var(--calmo);
+  transition: width 0.1s linear;
+}

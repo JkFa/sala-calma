@@ -47,7 +47,11 @@ export interface LessonState {
   wave: number[]
   /** Nível equivalente (Leq) da aula até agora. */
   leqAula: number | null
-  /** O microfone está mandando silêncio total há alguns segundos. */
+  /**
+   * O microfone não está captando a sala: silêncio total há alguns
+   * segundos, ou nível parado (variação < 3 dB) por 20 s. Numa aula isso
+   * não acontece; acontece com a entrada de fone sem fone ligado.
+   */
   semSinal: boolean
   /** Nome do microfone em uso. */
   microfone: string
@@ -187,7 +191,7 @@ function onLevel(e: LevelEvent) {
     recent,
     wave: [...st.wave.slice(-(WAVE_MAX - 1)), lv],
     leqAula: 10 * Math.log10(leqE / leqN),
-    semSinal: silentMs >= SILENT_ALERT_MS,
+    semSinal: silentMs >= SILENT_ALERT_MS || isFlat(recent),
     microfone: meter.deviceLabel,
     error: null,
     calmMs: st.calmMs + (bandOf(lv, t) === 'calmo' ? WINDOW_MS : 0),
@@ -418,6 +422,8 @@ export async function closePending(): Promise<string | null> {
   return p.id
 }
 
+let lastMeasureMic = ''
+
 /**
  * Medição curta, sem aula (calibração, sala vazia). Devolve o dBFS(A) de
  * cada janela. `signal` permite cancelar.
@@ -429,6 +435,7 @@ export async function measureWindows(
 ): Promise<number[]> {
   if (lesson.get().session) throw new Error('Encerre a aula antes de fazer esta medição.')
   const m = new Meter()
+  lastMeasureMic = ''
   const values: number[] = []
   let silent = 0
   const total = Math.round((seconds * 1000) / WINDOW_MS)
@@ -442,6 +449,7 @@ export async function measureWindows(
       reject(new Error('O microfone parou no meio da medição (o app saiu da tela?). Tente de novo.'))
     }
     m.onLevel = (e) => {
+      lastMeasureMic = m.deviceLabel
       values.push(e.dbfsA)
       if (e.dbfsZ < SILENCE_DBFS) silent++
       onProgress(values.length / total, e.dbfsA)
@@ -455,14 +463,14 @@ export async function measureWindows(
   })
 }
 
-/** Usado pela calibração: devolve o dBFS(A) médio (energético). */
+/** Usado pela calibração: devolve o dBFS(A) médio (energético) e o microfone usado. */
 export async function measureForCalibration(
   seconds: number,
   onProgress: (fraction: number, dbfs: number) => void,
-): Promise<number> {
+): Promise<{ dbfs: number; mic: string }> {
   const values = await measureWindows(seconds, onProgress)
   const energy = values.reduce((a, v) => a + Math.pow(10, v / 10), 0) / values.length
-  return 10 * Math.log10(energy)
+  return { dbfs: 10 * Math.log10(energy), mic: lastMeasureMic }
 }
 
 /**
@@ -484,6 +492,15 @@ export async function switchMic(id: string) {
   }
   lastLevelAt = Date.now()
   lesson.set({ status: 'medindo', microfone: meter.deviceLabel })
+}
+
+/** Nível parado: os últimos 20 s (1 ponto/s) variam menos de 3 dB. */
+export const FLAT_SECONDS = 20
+export const FLAT_DB = 3
+export function isFlat(recent: number[]): boolean {
+  if (recent.length < FLAT_SECONDS) return false
+  const last = recent.slice(-FLAT_SECONDS)
+  return Math.max(...last) - Math.min(...last) < FLAT_DB
 }
 
 /**

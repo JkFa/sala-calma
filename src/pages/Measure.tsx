@@ -196,12 +196,20 @@ export function Measure() {
       {l.semSinal && (
         <div class="note note-error" role="alert">
           <p>
-            <strong>Nenhum som está chegando.</strong> {SILENT_MIC_MESSAGE}
+            <strong>O microfone não está ouvindo a sala.</strong> {SILENT_MIC_MESSAGE}
           </p>
           <MicPicker />
         </div>
       )}
       {calibracaoSuspeita(cal) && <BadCalibration />}
+      {cal?.mic && l.microfone && cal.mic !== l.microfone && (
+        <div class="note note-warn" role="status">
+          <p>
+            Este aparelho foi calibrado com outro microfone ({cal.mic}). Agora está medindo com “{l.microfone}”, então os valores em
+            dB(A) não valem. Volte para o microfone da calibração ou <a href="#/calibrar">calibre de novo</a> depois da aula.
+          </p>
+        </div>
+      )}
 
       <section class={`reading ${band ? 'reading-' + band : ''}`} aria-live="polite" aria-atomic="true">
         {l.status === 'pausado' ? (

@@ -77,7 +77,7 @@ export async function listMics(): Promise<MicInfo[]> {
 }
 
 export const SILENT_MIC_MESSAGE =
-  'O microfone está mandando silêncio total: nenhum som chega ao app. Confira se o microfone do computador não está mudo (tecla de mudo, ícone do microfone na barra de tarefas), se o navegador tem permissão de usar o microfone nas configurações do sistema, ou escolha outro microfone.'
+  'O microfone não está captando o som da sala: o nível está parado. Em computadores, isso costuma acontecer quando o sistema usa a entrada de fone de ouvido (sem fone ligado) em vez do microfone embutido. Escolha outro microfone abaixo e use “Testar microfone”; confira também a tecla de mudo e a permissão de microfone do navegador.'
 
 /** Abaixo disto (dBFS sem ponderação) não há sinal: microfone mudo ou bloqueado. */
 export const SILENCE_DBFS = -100

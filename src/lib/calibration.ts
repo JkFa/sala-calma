@@ -12,6 +12,8 @@ export interface Calibration {
   date: string
   /** Identificação do aparelho (user agent resumido), só para lembrar. */
   device: string
+  /** Nome do microfone usado na calibração (calibrações antigas não têm). */
+  mic?: string
 }
 
 /** Margens estimadas por método. */
