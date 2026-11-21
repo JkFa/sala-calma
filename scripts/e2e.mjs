@@ -220,6 +220,52 @@ try {
 
   if (SHOTS) await shoot('sala-vazia', [390, 1280])
 
+  let bundleTxt
+  await step('compartilhar: sem menu nativo baixa o arquivo e copia o resumo', async () => {
+    await ctx.grantPermissions(['microphone', 'clipboard-read', 'clipboard-write'], { origin: URL.slice(0, -1) })
+    await page.goto(reportUrl)
+    await page.waitForSelector('.report h1')
+    assert.equal(await page.evaluate(() => typeof navigator.share), 'undefined')
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Enviar para a coordenação")')])
+    assert.match(dl.suggestedFilename(), /^aula_.*\.json$/)
+    await page.waitForSelector('.share [role=status]:has-text("resumo foi copiado")')
+    const clip = await page.evaluate(() => navigator.clipboard.readText())
+    assert.match(clip, /Sala Calma · 8º A · Geografia/)
+    assert.match(clip, /abra na tela Escola de http/)
+  })
+
+  await step('compartilhar: Android recusa .json, envia .txt; "Enviar várias" junta tudo', async () => {
+    // Simula o menu de compartilhar do Chrome Android: aceita .txt, recusa .json.
+    await page.evaluate(() => {
+      window.__shared = []
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: (d) => !d.files || d.files.every((f) => f.name.endsWith('.txt')) })
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (d) => {
+          window.__shared.push({ text: d.text, files: await Promise.all((d.files || []).map(async (f) => ({ name: f.name, type: f.type, body: await f.text() }))) })
+        },
+      })
+    })
+    await page.click('button:has-text("Enviar para a coordenação")')
+    await page.waitForSelector('.share [role=status]:has-text(".txt")')
+    let shared = await page.evaluate(() => window.__shared)
+    assert.match(shared[0].files[0].name, /^aula_.*\.txt$/)
+    assert.equal(JSON.parse(shared[0].files[0].body).formato, 'sala-calma/aula')
+    assert.match(shared[0].text, /8º A/)
+
+    await page.goto(URL + '#/aulas') // mesma página: o menu simulado continua
+    await page.selectOption('#periodo', 'todas')
+    await page.click('button:has-text("Enviar 2 aulas e 1 sala vazia")')
+    await page.waitForSelector('.share-msg:has-text("Enviado")')
+    shared = await page.evaluate(() => window.__shared)
+    const b = shared[1].files[0]
+    assert.match(b.name, /^sala-calma_.*_3-registros\.txt$/)
+    const items = JSON.parse(b.body)
+    assert.deepEqual(items.map((x) => x.formato).sort(), ['sala-calma/aula', 'sala-calma/aula', 'sala-calma/sala-vazia'])
+    bundleTxt = b.body
+    if (SHOTS) await shoot('enviar-varias', [390])
+  })
+
   await step('IndexedDB guarda só números (sem áudio)', async () => {
     const info = await page.evaluate(
       () =>
@@ -279,11 +325,14 @@ try {
       { name: 'c.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(extra('9º B', '2026-03-12T14:00:00-03:00', 61.7, 6.2))) },
       { name: 'sala.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(roomJson)) },
       { name: 'sala-b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...roomJson, sala: 'Sala 7 (pátio)', data: '2026-03-11T13:00:00Z', leq: 47.2, l10: 55.1, l90: 41.3 })) },
+      // Arquivo único enviado como .txt (Android): traz a aula migrada da v1, a de hoje (duplicada) e a sala (duplicada).
+      { name: 'varias.txt', mimeType: 'text/plain', buffer: Buffer.from(bundleTxt) },
     ]
     await page.goto(URL + '#/escola')
     await page.setInputFiles('#files', files)
     await page.waitForSelector('.school-summary')
-    assert.match(await page.textContent('.school-summary'), /3\s*aulas/)
+    assert.match(await page.textContent('.school-summary'), /4\s*aulas/) // 3 + aula antiga; duplicatas ignoradas
+    assert.equal(await page.locator('.school-group:has(h2:has-text("Salas vazias")) tbody tr').count(), 2)
     const school = await page.textContent('.school')
     assert.match(school, /Salas vazias/)
     assert.match(school, /Por momento da aula/)
