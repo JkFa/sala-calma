@@ -11,6 +11,61 @@ import { dateShort, dec } from '../ui/format'
 import { IconPrint } from '../ui/icons'
 import { settings } from '../state/settings'
 import { APP } from '../config'
+import { exportedVerdict, isExportedRoom, noiseCharacter, OMS_SALA_DBA, type ExportedRoom, type RoomVerdict } from '../lib/room'
+
+const VERDICT_SHORT: Record<RoomVerdict, { label: string; cls: string }> = {
+  'sem-calibracao': { label: 'sem calibração', cls: 'soft' },
+  dentro: { label: 'dentro', cls: 'text-calmo' },
+  'na-margem': { label: 'no limite (margem)', cls: 'text-atencao' },
+  acima: { label: 'acima', cls: 'text-alto' },
+  'bem-acima': { label: 'bem acima', cls: 'text-alto' },
+}
+
+/** Salas vazias: problema do prédio, não da turma. */
+function Rooms({ rooms }: { rooms: ExportedRoom[] }) {
+  const sorted = [...rooms].sort((a, b) => (b.calibrado ? b.leq : -1) - (a.calibrado ? a.leq : -1))
+  const acima = rooms.filter((r) => ['acima', 'bem-acima'].includes(exportedVerdict(r))).length
+  return (
+    <section class="school-group">
+      <h2>Salas vazias</h2>
+      <p class="small soft">
+        Ruído de fundo sem ninguém na sala, comparado com os {OMS_SALA_DBA} dB(A) recomendados pela OMS.
+        {acima > 0 && ` ${acima} de ${rooms.length} medições ficaram acima, além da margem de erro.`}
+      </p>
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th scope="col">Sala</th>
+            <th scope="col">Quando</th>
+            <th scope="col" class="r">
+              Média
+            </th>
+            <th scope="col" class="r">
+              Fundo
+            </th>
+            <th scope="col">Tipo</th>
+            <th scope="col">OMS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((r) => {
+            const v = VERDICT_SHORT[exportedVerdict(r)]
+            return (
+              <tr key={r.data + r.sala}>
+                <th scope="row">{r.sala || '(sem nome)'}</th>
+                <td class="num">{dateShort(Date.parse(r.data))}</td>
+                <td class="r num">{r.calibrado ? `${dec(r.leq)} dB(A)` : '—'}</td>
+                <td class="r num">{r.calibrado ? `${dec(r.l90)} dB(A)` : '—'}</td>
+                <td>{noiseCharacter(r)}</td>
+                <td class={v.cls}>{v.label}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </section>
+  )
+}
 
 function GroupTable({ title, groups, t, calibrated }: { title: string; groups: Group[]; t: Thresholds; calibrated: boolean }) {
   const maxPct = Math.max(1, ...groups.map((g) => g.pctAlto))
@@ -111,25 +166,33 @@ function Heat({ lessons }: { lessons: ExportedLesson[] }) {
 
 export function School() {
   const [lessons, setLessons] = useState<ExportedLesson[]>([])
+  const [rooms, setRooms] = useState<ExportedRoom[]>([])
   const [problems, setProblems] = useState<string[]>([])
   const t = settings.get().thresholds
 
   const onFiles = async (files: FileList | null) => {
     if (!files) return
     const ok: ExportedLesson[] = []
+    const okRooms: ExportedRoom[] = []
     const bad: string[] = []
     for (const f of Array.from(files)) {
       try {
         const data = JSON.parse(await f.text())
         const list = Array.isArray(data) ? data : [data]
         const valid = list.filter(isExportedLesson)
-        if (!valid.length) bad.push(f.name)
+        const validRooms = list.filter(isExportedRoom)
+        if (!valid.length && !validRooms.length) bad.push(f.name)
         ok.push(...valid)
+        okRooms.push(...validRooms)
       } catch {
         bad.push(f.name)
       }
     }
     setLessons((prev) => dedupe([...prev, ...ok]))
+    setRooms((prev) => {
+      const seen = new Set(prev.map((r) => r.data + r.sala))
+      return [...prev, ...okRooms.filter((r) => !seen.has(r.data + r.sala) && seen.add(r.data + r.sala))]
+    })
     setProblems(bad)
   }
 
@@ -144,7 +207,7 @@ export function School() {
         <p class="print-only small">{APP.name} · painel da escola</p>
         <h1>Escola</h1>
         <p class="lead no-print">
-          Junte os arquivos que os professores exportaram (botão “Arquivo para a escola”, no relatório de cada aula) e veja onde e
+          Junte os arquivos que os professores exportaram (botão “Arquivo para a escola”, no relatório de cada aula e na medição da sala vazia) e veja onde e
           quando a acústica pesa mais. Os arquivos são lidos aqui mesmo, neste navegador. Nada é enviado.
         </p>
       </header>
@@ -164,8 +227,14 @@ export function School() {
             e.currentTarget.value = ''
           }}
         />
-        {lessons.length > 0 && (
-          <button class="btn btn-quiet" onClick={() => setLessons([])}>
+        {lessons.length + rooms.length > 0 && (
+          <button
+            class="btn btn-quiet"
+            onClick={() => {
+              setLessons([])
+              setRooms([])
+            }}
+          >
             Limpar
           </button>
         )}
@@ -177,7 +246,7 @@ export function School() {
         </p>
       )}
 
-      {lessons.length === 0 ? (
+      {lessons.length === 0 && rooms.length === 0 ? (
         <div class="empty">
           <p>Nenhum arquivo aberto ainda.</p>
           <p class="small soft">
@@ -187,6 +256,8 @@ export function School() {
         </div>
       ) : (
         <>
+          {lessons.length > 0 && (
+          <>
           <p class="school-summary">
             <strong class="num">{sum.aulas}</strong> aulas, de {sum.inicio && dateShort(Date.parse(sum.inicio))} a{' '}
             {sum.fim && dateShort(Date.parse(sum.fim))}. <strong class="num">{sum.calibradas}</strong> com aparelho calibrado.
@@ -205,12 +276,16 @@ export function School() {
           <Heat lessons={base} />
           <GroupTable title="Por dia" groups={aggregate(base, byWeekday, weekdayOrder)} t={t} calibrated={calibrated} />
           <GroupTable title="Por horário" groups={aggregate(base, byHour, keyOrder)} t={t} calibrated={calibrated} />
+          </>
+          )}
+          {rooms.length > 0 && <Rooms rooms={rooms} />}
 
           <section class="school-notes">
             <h2>Como ler</h2>
             <ul>
               <li>“Esforço vocal” é o tempo, por hora de aula, em que o ruído de fundo passou do limiar em que a voz tende a subir.</li>
               <li>Turmas e horários com muito tempo na faixa alta são candidatos a revisão acústica: forro, janelas, ventiladores, ruído do pátio.</li>
+              <li>Sala vazia acima de {OMS_SALA_DBA} dB(A) é problema do ambiente, não da turma: é o dado mais forte para pedir intervenção.</li>
               <li>Os dados não identificam professores. Não use o painel para avaliar desempenho de ninguém.</li>
             </ul>
           </section>

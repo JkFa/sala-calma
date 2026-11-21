@@ -312,25 +312,46 @@ export async function closePending(): Promise<string | null> {
   return p.id
 }
 
-/** Usado pela calibração: mede sem sessão, devolvendo o dBFS(A) médio. */
-export async function measureForCalibration(
+/**
+ * Medição curta, sem aula (calibração, sala vazia). Devolve o dBFS(A) de
+ * cada janela. `signal` permite cancelar.
+ */
+export async function measureWindows(
   seconds: number,
   onProgress: (fraction: number, dbfs: number) => void,
-): Promise<number> {
-  if (lesson.get().session) throw new Error('Encerre a aula antes de calibrar.')
+  signal?: AbortSignal,
+): Promise<number[]> {
+  if (lesson.get().session) throw new Error('Encerre a aula antes de fazer esta medição.')
   const m = new Meter()
   const values: number[] = []
   const total = Math.round((seconds * 1000) / WINDOW_MS)
-  return new Promise<number>((resolve, reject) => {
+  return new Promise<number[]>((resolve, reject) => {
+    signal?.addEventListener('abort', () => {
+      m.stop()
+      reject(new DOMException('Cancelado', 'AbortError'))
+    })
+    m.onInterrupt = () => {
+      m.stop()
+      reject(new Error('O microfone parou no meio da medição (o app saiu da tela?). Tente de novo.'))
+    }
     m.onLevel = (e) => {
       values.push(e.dbfsA)
       onProgress(values.length / total, e.dbfsA)
       if (values.length >= total) {
         m.stop()
-        const energy = values.reduce((a, v) => a + Math.pow(10, v / 10), 0) / values.length
-        resolve(10 * Math.log10(energy))
+        resolve(values)
       }
     }
     m.start().catch((e) => reject(e))
   })
+}
+
+/** Usado pela calibração: devolve o dBFS(A) médio (energético). */
+export async function measureForCalibration(
+  seconds: number,
+  onProgress: (fraction: number, dbfs: number) => void,
+): Promise<number> {
+  const values = await measureWindows(seconds, onProgress)
+  const energy = values.reduce((a, v) => a + Math.pow(10, v / 10), 0) / values.length
+  return 10 * Math.log10(energy)
 }
