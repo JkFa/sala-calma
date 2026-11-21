@@ -543,7 +543,7 @@ section {
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr auto auto;
   background: var(--paper);
   color: var(--ink);
   transition: background-color 0.8s ease;
@@ -1258,4 +1258,124 @@ section {
 .live-break {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ---------- Semáforo: cronômetro, bolinhas, semana ---------- */
+
+.timer-panel {
+  position: absolute;
+  z-index: 3;
+  top: 4.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(34rem, calc(100% - 1.5rem));
+  background: var(--paper);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-m);
+  padding: 1rem 1.2rem 0.4rem;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.25);
+}
+.timer-panel-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step-2);
+  margin: 0 0 0.6rem;
+}
+.timer-panel fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+.timer-panel legend {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.light-timer {
+  text-align: center;
+  padding: 0 1.5rem 0.6rem;
+  max-width: 44rem;
+  margin: 0 auto;
+  width: 100%;
+}
+.light-timer p {
+  margin: 0;
+  max-width: none;
+}
+.light-timer-label {
+  font-size: clamp(1.1rem, 0.9rem + 1.2vw, 1.9rem);
+  font-weight: 500;
+}
+.light-timer-clock {
+  font-size: clamp(2.8rem, 1.6rem + 6vw, 6.5rem);
+  font-weight: 600;
+  line-height: 1;
+  margin: 0.1rem 0 0.5rem !important;
+  letter-spacing: -0.02em;
+}
+.light-timer .light-progress {
+  margin-top: 0.4rem;
+}
+.light-timer-done {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(3rem, 2rem + 6vw, 7rem);
+  line-height: 1;
+}
+.light-nonum .light-timer .light-progress {
+  height: 22px;
+}
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.dots span {
+  width: clamp(1.4rem, 1rem + 1.5vw, 2.4rem);
+  height: clamp(1.4rem, 1rem + 1.5vw, 2.4rem);
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  transition: background-color 0.4s;
+}
+.dots .dot-on {
+  background: currentColor;
+}
+.light-week {
+  margin-top: 0.9rem;
+}
+.light-week-text {
+  font-size: clamp(1rem, 0.85rem + 0.9vw, 1.6rem);
+  margin: 0 0 0.4rem;
+  max-width: none;
+}
+.light-week .light-progress {
+  height: 8px;
+}
+
+/* Com cronômetro, tudo precisa caber numa tela projetada */
+.light {
+  overflow-y: auto;
+}
+.light-center {
+  min-height: 0;
+}
+.light.has-timer .light-center {
+  gap: 0.2rem;
+  padding-block: 0.25rem;
+}
+.light.has-timer .light-center .shape {
+  width: min(13vh, 22vw);
+  height: min(13vh, 22vw);
+}
+.light.has-timer .light-word {
+  font-size: clamp(2.6rem, 1.2rem + 7vw, 7.5rem);
+}
+.light.has-timer .light-msg {
+  font-size: clamp(1.1rem, 0.9rem + 1.2vw, 1.8rem);
+}
+.light.has-timer .light-timer-clock {
+  font-size: clamp(2.4rem, 1.4rem + 4.5vw, 5rem);
+}
+.light-goal {
+  padding-top: 0.6rem;
 }

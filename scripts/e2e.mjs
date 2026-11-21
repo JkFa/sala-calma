@@ -454,6 +454,77 @@ try {
     await ctx3.close()
   })
 
+  await step('semáforo: cronômetro marca o momento, +1 min, meta da semana, modo sem números', async () => {
+    const ctx4 = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'pt-BR' })
+    await ctx4.grantPermissions(['microphone'], { origin: URL.slice(0, -1) })
+    const p4 = await ctx4.newPage()
+    p4.on('pageerror', (e) => errors.push('[semáforo] ' + e.message))
+    await p4.goto(URL + '#/medir')
+    await p4.evaluate(() =>
+      localStorage.setItem('sala-calma:ajustes', JSON.stringify({ metaSemanalMin: 60, calibration: { offset: 104.2, method: 'medidor', margin: 3, date: new Date().toISOString(), device: 't' } })),
+    )
+    await p4.reload()
+    // 1ª aula da turma, para a semana ter o que somar
+    await p4.fill('#turma', '6º C')
+    await p4.click('button:has-text("Começar a medir")')
+    await p4.waitForSelector('.reading-band', { timeout: 10000 })
+    await p4.waitForTimeout(5000)
+    await p4.click('button:has-text("Encerrar aula")')
+    await p4.waitForSelector('.report h1')
+    // 2ª aula, escrita diferente (" 6º c"): a semana soma as duas
+    await p4.goto(URL + '#/medir')
+    await p4.fill('#turma', ' 6º c')
+    await p4.click('button:has-text("Começar a medir")')
+    await p4.waitForSelector('.reading-band', { timeout: 10000 })
+    await p4.goto(URL + '#/semaforo')
+    await p4.waitForSelector('.light-week')
+    assert.match(await p4.textContent('.light-week'), /Esta semana, 6º c: .+ de sala calma de 1 h 00 min/)
+    // Cronômetro com momento
+    await p4.click('button:has-text("Cronômetro")')
+    await p4.click('.timer-panel button:has-text("3 min")')
+    await p4.click('.timer-panel button:has-text("Grupo")')
+    await p4.click('.timer-panel button:has-text("Começar 3 min")')
+    await p4.waitForSelector('.light-timer-clock')
+    assert.match(await p4.textContent('.light-timer'), /Grupo/)
+    assert.match(await p4.textContent('.light-timer-clock'), /^(3:00|2:5\d)$/)
+    await p4.click('.light-bar button:has-text("+1 min")')
+    assert.match(await p4.textContent('.light-timer-clock'), /^(4:00|3:5\d)$/)
+    if (SHOTS) {
+      await p4.waitForTimeout(800)
+      await p4.screenshot({ path: 'docs/screenshots/semaforo-cronometro-1280.png' })
+    }
+    const marks = await p4.evaluate(
+      () =>
+        new Promise((res) => {
+          const r = indexedDB.open('sala-calma')
+          r.onsuccess = () => {
+            const g = r.result.transaction('sessions').objectStore('sessions').getAll()
+            g.onsuccess = () => res(g.result.find((s) => s.endedAt === null)?.marks?.map((m) => m.kind))
+          }
+        }),
+    )
+    assert.deepEqual(marks, ['grupo'])
+    // Sair e voltar: o cronômetro continua
+    await p4.goto(URL + '#/medir')
+    await p4.goto(URL + '#/semaforo')
+    await p4.waitForSelector('.light-timer-clock')
+    // Modo sem números (pelo Ajustes, sem perder a aula)
+    await p4.goto(URL + '#/ajustes')
+    await p4.check('text=Sem números (turmas pequenas)')
+    await p4.goto(URL + '#/semaforo')
+    await p4.waitForSelector('.dots')
+    assert.equal(await p4.locator('.light-timer-clock').count(), 0)
+    assert.doesNotMatch(await p4.textContent('.light-goal'), /\d/)
+    assert.doesNotMatch(await p4.textContent('.light-timer'), /\d/)
+    if (SHOTS) {
+      await p4.waitForTimeout(800)
+      await p4.screenshot({ path: 'docs/screenshots/semaforo-sem-numeros-1280.png' })
+    }
+    await p4.click('.light-bar button:has-text("Parar")')
+    assert.equal(await p4.locator('.light-timer').count(), 0)
+    await ctx4.close()
+  })
+
   await step('abre offline depois da primeira visita', async () => {
     await ctx.setOffline(true)
     await page.goto(URL + '#/ajustes')

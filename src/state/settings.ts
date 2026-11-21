@@ -24,6 +24,10 @@ export interface Settings {
   ultimoBackup: string | null
   /** Lembrete de pausa vocal após N minutos seguidos de esforço (0 = desligado). */
   lembreteVocalMin: number
+  /** Semáforo sem números (turmas pequenas): bolinhas e barras no lugar de dígitos. */
+  semaforoSemNumeros: boolean
+  /** Meta semanal de sala calma por turma, em minutos (0 = só mostra o total). */
+  metaSemanalMin: number
 }
 
 const KEY = 'sala-calma:ajustes'
@@ -39,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   viuDicaMesa: false,
   ultimoBackup: null,
   lembreteVocalMin: 15,
+  semaforoSemNumeros: false,
+  metaSemanalMin: 0,
 }
 
 function load(): Settings {

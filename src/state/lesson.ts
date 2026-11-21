@@ -16,6 +16,7 @@ import {
   type GapReason,
   type Segment,
   type Session,
+  computeReport,
 } from '../lib/session'
 import { settings } from './settings'
 import { activityAt, addMark, type ActivityId, type ActivityKey } from '../lib/activities'
@@ -50,6 +51,8 @@ export interface LessonState {
   pausaVocal: boolean
   /** Qual dica mostrar no lembrete. */
   pausaDica: number
+  /** Tempo na faixa calma nesta aula (mesma regra do relatório). */
+  calmMs: number
 }
 
 export const lesson = createStore<LessonState>({
@@ -68,6 +71,7 @@ export const lesson = createStore<LessonState>({
   vocalStreakMs: 0,
   pausaVocal: false,
   pausaDica: 0,
+  calmMs: 0,
 })
 
 const meter = new Meter()
@@ -156,6 +160,7 @@ function onLevel(e: LevelEvent) {
     lightBand,
     recent,
     error: null,
+    calmMs: st.calmMs + (bandOf(lv, t) === 'calmo' ? WINDOW_MS : 0),
     ...pausa,
   })
 }
@@ -271,6 +276,7 @@ export async function startLesson(turma: string, disciplina: string) {
     activity: 'sem-marcacao',
     vocalStreakMs: 0,
     pausaVocal: false,
+    calmMs: 0,
   })
   newStreak(s)
   seg = null
@@ -346,7 +352,7 @@ export async function continuePending() {
   const p = lesson.get().pendente
   if (!p) return
   p.marks ??= []
-  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], activity: activityAt(p.marks, Date.now()), vocalStreakMs: 0, pausaVocal: false })
+  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], activity: activityAt(p.marks, Date.now()), vocalStreakMs: 0, pausaVocal: false, calmMs: computeReport(p).bandMs.calmo })
   newStreak(p)
   seg = null
   nextReason = 'interrompido'

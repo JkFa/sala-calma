@@ -82,6 +82,30 @@ export function SettingsPage() {
       </section>
 
       <section>
+        <h2>Semáforo</h2>
+        <label class="check">
+          <input type="checkbox" checked={s.semaforoSemNumeros} onChange={(e) => settings.set({ semaforoSemNumeros: e.currentTarget.checked })} />
+          Sem números (turmas pequenas)
+        </label>
+        <p class="small soft">A meta vira bolinhas que se enchem e o cronômetro vira uma barra que encolhe.</p>
+        <div class="field">
+          <label for="meta-semana">
+            Meta da semana por turma <span class="hint">tempo de sala calma somado nas aulas da semana</span>
+          </label>
+          <select id="meta-semana" value={s.metaSemanalMin} onChange={(e) => settings.set({ metaSemanalMin: Number(e.currentTarget.value) })}>
+            <option value={0}>Sem meta (só mostra o total)</option>
+            <option value={60}>1 hora</option>
+            <option value={120}>2 horas</option>
+            <option value={180}>3 horas</option>
+            <option value={300}>5 horas</option>
+          </select>
+        </div>
+        <p class="small soft">
+          Soma as aulas desta semana (segunda a domingo) com o mesmo nome de turma. Só conta o tempo bom; o barulho não desconta.
+        </p>
+      </section>
+
+      <section>
         <h2>Lembrete de pausa vocal</h2>
         <div class="field">
           <label for="lembrete">
