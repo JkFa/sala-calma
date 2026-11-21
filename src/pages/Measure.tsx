@@ -66,6 +66,9 @@ function StartForm() {
         <button class="btn btn-primary btn-big" type="submit" disabled={busy}>
           <IconPlay /> {busy ? 'Ligando o microfone…' : 'Começar a medir'}
         </button>
+        <p class="small">
+          Antes da primeira aula numa sala nova, vale <a href="#/sala-vazia">medir a sala vazia</a>: mostra quanto do barulho é do prédio.
+        </p>
         <p class="small soft">
           O microfone só mede o nível do som. Nada é gravado nem enviado.{' '}
           {isIOS && 'No iPhone, mantenha o app aberto: o Safari desliga o microfone quando a tela sai do app.'}

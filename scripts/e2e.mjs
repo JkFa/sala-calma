@@ -53,6 +53,34 @@ const step = async (name, fn) => {
 }
 
 try {
+  await step('prepara banco no formato v1 (app já publicado)', async () => {
+    // Abre uma página da mesma origem que não carrega o app e cria o banco
+    // como a versão 1 criava, com uma aula antiga. O app deve migrar sem perder nada.
+    await page.goto(URL + 'robots.txt')
+    await page.evaluate(
+      () =>
+        new Promise((resolve, reject) => {
+          const req = indexedDB.open('sala-calma', 1)
+          req.onupgradeneeded = () => req.result.createObjectStore('sessions', { keyPath: 'id' }).createIndex('startedAt', 'startedAt')
+          req.onerror = () => reject(req.error)
+          req.onsuccess = () => {
+            const t0 = Date.now() - 9 * 24 * 3600 * 1000
+            const levels = Array.from({ length: 2400 }, (_, i) => -42 + 6 * Math.sin(i / 90))
+            const tx = req.result.transaction('sessions', 'readwrite')
+            tx.objectStore('sessions').put({
+              id: 'antiga-v1', turma: '8º A', disciplina: 'Geografia', startedAt: t0, endedAt: t0 + 300000, windowMs: 125,
+              calibration: { offset: 104.2, method: 'medidor', margin: 3, date: new Date(t0).toISOString(), device: 'teste' },
+              thresholds: { calmoAte: 55, altoDesde: 65, esforcoVocal: 43 },
+              segments: [{ start: t0, levels }], gaps: [],
+            })
+            tx.oncomplete = () => { req.result.close(); resolve() }
+          }
+        }),
+    )
+    // A página robots.txt pede /favicon.ico (404): não é erro do app.
+    errors.length = 0
+  })
+
   await step('abre e registra o service worker', async () => {
     await page.goto(URL)
     await page.waitForFunction(async () => {
@@ -129,6 +157,42 @@ try {
   })
 
   if (SHOTS) await shoot('relatorio')
+  const reportUrl = page.url()
+
+  await step('evolução mostra a semana e a turma (inclui aula migrada da v1)', async () => {
+    await page.goto(URL + '#/evolucao')
+    await page.waitForSelector('.week-now')
+    const row = await page.textContent('.evolution tbody tr')
+    assert.match(row, /8º A/)
+    assert.equal((await page.textContent('.evolution tbody tr td.num')).trim(), '2') // aula antiga (v1) + aula de hoje
+    assert.equal(await page.locator('.weekbars').count(), 2)
+    assert.match(await page.textContent('.wb-vocal'), /esta/)
+  })
+
+  if (SHOTS) await shoot('evolucao')
+
+  let roomJson
+  await step('sala vazia: mede 1 minuto, compara com a OMS e salva', async () => {
+    await page.goto(URL + '#/sala-vazia')
+    await page.fill('#sala', 'Sala 12')
+    await page.check('text=Ventilador ligado')
+    await page.click('button:has-text("Medir 1 minuto")')
+    await page.waitForSelector('.room-result', { timeout: 80000 })
+    const txt = await page.textContent('.room-result')
+    assert.match(txt, /Sala 12/)
+    assert.match(txt, /Dentro da recomendação|Perto do limite|Acima da recomendação|Bem acima da recomendação/)
+    assert.match(txt, /Ruído (constante|intermitente)/)
+    assert.match(txt, /ventilador ligado/)
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.room-result button:has-text("Arquivo para a escola")')])
+    roomJson = JSON.parse((await import('node:fs')).readFileSync(await dl.path(), 'utf8'))
+    assert.equal(roomJson.formato, 'sala-calma/sala-vazia')
+    assert.equal(roomJson.serie.length, 60)
+    // Continua salva depois de recarregar
+    await page.reload()
+    await page.waitForSelector('.room-result')
+  })
+
+  if (SHOTS) await shoot('sala-vazia', [390, 1280])
 
   await step('IndexedDB guarda só números (sem áudio)', async () => {
     const info = await page.evaluate(
@@ -137,9 +201,10 @@ try {
           const req = indexedDB.open('sala-calma')
           req.onerror = () => reject(req.error)
           req.onsuccess = () => {
-            const tx = req.result.transaction('sessions')
+            const tx = req.result.transaction(['sessions', 'rooms'])
+            const rooms = tx.objectStore('rooms').getAll()
             const all = tx.objectStore('sessions').getAll()
-            all.onsuccess = () => {
+            tx.oncomplete = () => {
               const bad = []
               const walk = (v, path) => {
                 if (v === null || ['number', 'boolean'].includes(typeof v)) return
@@ -152,19 +217,24 @@ try {
                 if (typeof v === 'object') for (const k of Object.keys(v)) walk(v[k], `${path}.${k}`)
               }
               walk(all.result, 'sessions')
+              walk(rooms.result, 'rooms')
               const levels = all.result.flatMap((s) => s.segments.flatMap((g) => g.levels))
-              resolve({ bad, n: all.result.length, levels: levels.length, allNumbers: levels.every((x) => typeof x === 'number') })
+              resolve({ bad, n: all.result.length, rooms: rooms.result.length, version: req.result.version, levels: levels.length, allNumbers: levels.every((x) => typeof x === 'number') })
             }
           }
         }),
     )
-    assert.equal(info.n, 1)
+    assert.equal(info.version, 2)
+    assert.equal(info.n, 2) // aula migrada da v1 + aula de hoje
+    assert.equal(info.rooms, 1)
     assert.deepEqual(info.bad, [])
     assert.ok(info.levels > 40, `poucos níveis: ${info.levels}`)
     assert.ok(info.allNumbers)
   })
 
   await step('exporta JSON e o painel da escola lê', async () => {
+    await page.goto(reportUrl)
+    await page.waitForSelector('.report h1')
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Arquivo para a escola")')])
     const path = await dl.path()
     const json = JSON.parse((await import('node:fs')).readFileSync(path, 'utf8'))
@@ -180,11 +250,17 @@ try {
       { name: 'a.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) },
       { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(extra('6º C', '2026-03-10T10:20:00-03:00', 68.3, 21.5))) },
       { name: 'c.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(extra('9º B', '2026-03-12T14:00:00-03:00', 61.7, 6.2))) },
+      { name: 'sala.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(roomJson)) },
+      { name: 'sala-b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...roomJson, sala: 'Sala 7 (pátio)', data: '2026-03-11T13:00:00Z', leq: 47.2, l10: 55.1, l90: 41.3 })) },
     ]
     await page.goto(URL + '#/escola')
     await page.setInputFiles('#files', files)
     await page.waitForSelector('.school-summary')
     assert.match(await page.textContent('.school-summary'), /3\s*aulas/)
+    const school = await page.textContent('.school')
+    assert.match(school, /Salas vazias/)
+    assert.match(school, /Sala 7 \(pátio\)/)
+    assert.match(school, /bem acima/)
   })
 
   if (SHOTS) await shoot('escola')

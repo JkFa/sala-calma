@@ -14,6 +14,8 @@ import { Calibrate } from './pages/Calibrate'
 import { SettingsPage } from './pages/Settings'
 import { School } from './pages/School'
 import { Privacy } from './pages/Privacy'
+import { Evolution } from './pages/Evolution'
+import { EmptyRoom } from './pages/EmptyRoom'
 
 const NAV = [
   { path: 'medir', label: 'Medir', Icon: IconMic },
@@ -29,6 +31,8 @@ const TITLES: Record<string, string> = {
   semaforo: 'Semáforo',
   aulas: 'Aulas',
   aula: 'Relatório da aula',
+  evolucao: 'Evolução',
+  'sala-vazia': 'Sala vazia',
   calibrar: 'Calibrar',
   ajustes: 'Ajustes',
   escola: 'Escola',
@@ -87,6 +91,12 @@ export function App() {
     case 'aula':
       content = <LessonReport id={route[1] ?? ''} />
       break
+    case 'evolucao':
+      content = <Evolution />
+      break
+    case 'sala-vazia':
+      content = <EmptyRoom />
+      break
     case 'calibrar':
       content = <Calibrate />
       break
@@ -124,7 +134,7 @@ export function App() {
       </header>
       <nav class="tabs" aria-label="Seções">
         {NAV.map(({ path, label, Icon }) => (
-          <a key={path} href={`#/${path}`} class="tab" aria-current={page === path || (path === 'aulas' && page === 'aula') ? 'page' : undefined}>
+          <a key={path} href={`#/${path}`} class="tab" aria-current={page === path || (path === 'aulas' && ['aula', 'evolucao', 'sala-vazia'].includes(page)) ? 'page' : undefined}>
             <Icon />
             <span>{label}</span>
           </a>

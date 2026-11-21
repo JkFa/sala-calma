@@ -276,8 +276,10 @@ input[type='number'] {
   cursor: pointer;
 }
 .check input {
-  width: 1.4rem;
-  height: 1.4rem;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
   accent-color: var(--accent);
 }
 

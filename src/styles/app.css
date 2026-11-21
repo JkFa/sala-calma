@@ -963,3 +963,122 @@ section {
 .print-only {
   display: none;
 }
+
+/* ---------- Abas internas (Aulas / Evolução / Sala vazia) ---------- */
+
+.subtabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--rule);
+  margin: -0.5rem 0 1.5rem;
+  overflow-x: auto;
+}
+.subtabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 0.9rem;
+  text-decoration: none;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.subtabs a[aria-current='page'] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* ---------- Evolução ---------- */
+
+.week-now .figures dd {
+  font-size: var(--step-3);
+  line-height: 1.1;
+}
+.delta {
+  display: block;
+  font-size: var(--step--1);
+  margin-top: 0.2rem;
+}
+.weekbars {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.weekbars .grid {
+  stroke: var(--rule-strong);
+}
+.weekbars .bar {
+  fill: var(--rule-strong);
+}
+.wb-vocal .bar-now {
+  fill: var(--accent);
+}
+.wb-alto .bar-now {
+  fill: var(--alto);
+}
+.weekbars .val {
+  font: 600 14px var(--font-ui);
+  fill: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.weekbars .axis {
+  font: 500 11.5px var(--font-ui);
+  fill: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.weekbars .axis-now {
+  fill: var(--ink);
+  font-weight: 600;
+}
+.tspark {
+  display: block;
+}
+.tspark polyline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.tspark circle {
+  fill: var(--alto);
+}
+
+/* ---------- Sala vazia ---------- */
+
+.room-form {
+  max-width: 34rem;
+}
+.room-form .check {
+  min-height: 44px;
+}
+.room-result {
+  border-top: 1.5px solid var(--ink);
+  padding-top: 1rem;
+  margin-bottom: 2.5rem;
+}
+.room-result h3 {
+  font-size: var(--step-2);
+  margin-bottom: 0.3rem;
+}
+.room-verdict {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step-2);
+  margin: 0.4rem 0;
+}
+.room-figures {
+  margin: 1rem 0;
+}
+
+@media (max-width: 40rem) {
+  .room-result .chart .axis,
+  .room-result .chart .th-label {
+    font-size: 13px;
+  }
+}
+.room-result .chart,
+.weekbars {
+  max-width: 36rem;
+}

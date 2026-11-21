@@ -115,6 +115,14 @@ export function Home() {
             quanto tempo o ruído ficou no nível em que a gente tende a forçar a voz.
           </li>
           <li>
+            <strong>Mostra a evolução.</strong> Semana a semana e turma a turma: o Tempo de Risco Vocal somado e se a turma está
+            ficando mais calma ou mais barulhenta.
+          </li>
+          <li>
+            <strong>Mede a sala vazia.</strong> Um minuto sem ninguém na sala mostra o barulho que vem do prédio (ventilador, pátio,
+            rua) e compara com os 35 dB(A) que a OMS recomenda.
+          </li>
+          <li>
             <strong>Junta dados para a escola.</strong> Os professores exportam um arquivo; a coordenação abre todos juntos e vê
             quais salas e horários pesam mais. Sem servidor, sem cadastro.
           </li>
