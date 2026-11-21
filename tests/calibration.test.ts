@@ -20,3 +20,12 @@ describe('calibração', () => {
     expect(() => computeOffset(NaN, 60)).toThrow()
   })
 })
+
+describe('calibração feita com microfone mudo', () => {
+  it('marca como suspeita quando o silêncio digital virou 35 dB(A)', async () => {
+    const { calibracaoSuspeita, makeCalibration, QUIET_ROOM_DBA } = await import('../src/lib/calibration')
+    expect(calibracaoSuspeita(makeCalibration(-120, QUIET_ROOM_DBA, 'sala-silenciosa'))).toBe(true)
+    expect(calibracaoSuspeita(makeCalibration(-70, QUIET_ROOM_DBA, 'sala-silenciosa'))).toBe(false)
+    expect(calibracaoSuspeita(null)).toBe(false)
+  })
+})

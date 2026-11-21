@@ -34,7 +34,7 @@ describe('privacidade', () => {
   it('o worklet só envia três números por janela', () => {
     const w = readFileSync('src/audio/level-processor.js', 'utf8')
     const posts = w.match(/postMessage\(([^)]*)\)/g) ?? []
-    expect(posts).toEqual(['postMessage([this.sumA / this.n, this.sumZ / this.n, this.peak])'])
+    expect(posts).toEqual(['postMessage([this.sumA[best] / this.n, this.sumZ[best] / this.n, this.peak])'])
   })
 
   it('o modo AnalyserNode zera os buffers após cada leitura', () => {

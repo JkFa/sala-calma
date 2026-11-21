@@ -5,12 +5,16 @@ import {
   endLesson,
   lesson,
   pauseLesson,
+  removeCalibration,
   resumeLesson,
   startLesson,
 } from '../state/lesson'
 import { settings } from '../state/settings'
 import { useStore } from '../state/store'
 import { Gauge, LiveChart, gaugeRange } from '../ui/live'
+import { MicPicker } from '../ui/MicPicker'
+import { calibracaoSuspeita } from '../lib/calibration'
+import { SILENT_MIC_MESSAGE } from '../audio/meter'
 import type { MedidorVista } from '../state/settings'
 import { BAND_HINT, BAND_LABEL, clock, dec } from '../ui/format'
 import { BandShape, IconLight, IconPause, IconPlay, IconStop } from '../ui/icons'
@@ -114,6 +118,8 @@ function StartForm() {
           </label>
           <input id="disc" type="text" autocomplete="off" value={disc} onInput={(e) => setDisc(e.currentTarget.value)} />
         </div>
+        <MicPicker />
+        {calibracaoSuspeita(s.calibration) && <BadCalibration />}
         <button class="btn btn-primary btn-big" type="submit" disabled={busy}>
           <IconPlay /> {busy ? 'Ligando o microfone…' : 'Começar a medir'}
         </button>
@@ -186,6 +192,16 @@ export function Measure() {
       </div>
 
       <VocalBreak />
+
+      {l.semSinal && (
+        <div class="note note-error" role="alert">
+          <p>
+            <strong>Nenhum som está chegando.</strong> {SILENT_MIC_MESSAGE}
+          </p>
+          <MicPicker />
+        </div>
+      )}
+      {calibracaoSuspeita(cal) && <BadCalibration />}
 
       <section class={`reading ${band ? 'reading-' + band : ''}`} aria-live="polite" aria-atomic="true">
         {l.status === 'pausado' ? (
@@ -266,6 +282,26 @@ export function Measure() {
   )
 }
 
+/** Calibração feita com o microfone mudo: o valor fica parado (ex.: 35 dB(A)). */
+export function BadCalibration() {
+  return (
+    <div class="note note-warn" role="status">
+      <p>
+        A calibração deste aparelho foi feita quando o microfone não captava som nenhum. Por isso a leitura pode ficar parada
+        (por exemplo, sempre em 35 dB(A)). Remova a calibração e, com o microfone funcionando, calibre de novo.
+      </p>
+      <div class="row">
+        <button class="btn" type="button" onClick={removeCalibration}>
+          Remover calibração
+        </button>
+        <a class="btn btn-quiet" href="#/calibrar">
+          Calibrar de novo
+        </a>
+      </div>
+    </div>
+  )
+}
+
 const VISTAS: { id: MedidorVista; label: string }[] = [
   { id: 'grafico', label: 'Gráfico' },
   { id: 'ponteiros', label: 'Ponteiros' },
@@ -325,6 +361,7 @@ function LiveView() {
           <Gauge label="Média da aula (Leq)" value={l.leqAula} {...range} thresholds={s.thresholds} calibrated={cal} />
         </div>
       )}
+      {!l.semSinal && <MicPicker />}
       {showChart && <LiveChart values={chartValues} stepMs={chartStep} thresholds={s.thresholds} calibrated={cal} />}
     </section>
   )

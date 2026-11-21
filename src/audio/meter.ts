@@ -24,6 +24,7 @@ export type MeterErrorCode =
   | 'permissao-negada'
   | 'sem-microfone'
   | 'microfone-ocupado'
+  | 'sem-sinal'
   | 'desconhecido'
 
 export class MeterError extends Error {
@@ -34,15 +35,52 @@ export class MeterError extends Error {
   }
 }
 
+/**
+ * Sem processamento de voz (que achataria o nível). Não forçamos mono:
+ * em notebooks com dois microfones, a mistura em mono pode anular o sinal.
+ */
 export const MIC_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
     echoCancellation: false,
     noiseSuppression: false,
     autoGainControl: false,
-    channelCount: 1,
   },
   video: false,
 }
+
+/** Microfone escolhido pelo professor ('' = padrão do sistema). */
+let preferredMic = ''
+export function setPreferredMic(id: string) {
+  preferredMic = id
+}
+
+function constraintsFor(deviceId: string): MediaStreamConstraints {
+  if (!deviceId) return MIC_CONSTRAINTS
+  return { ...MIC_CONSTRAINTS, audio: { ...(MIC_CONSTRAINTS.audio as MediaTrackConstraints), deviceId: { exact: deviceId } } }
+}
+
+export interface MicInfo {
+  id: string
+  label: string
+}
+
+/** Microfones disponíveis. Os nomes só aparecem depois da permissão. */
+export async function listMics(): Promise<MicInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return []
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices()
+    const mics = all.filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications')
+    return mics.map((d, i) => ({ id: d.deviceId, label: d.label || `Microfone ${i + 1}` }))
+  } catch {
+    return []
+  }
+}
+
+export const SILENT_MIC_MESSAGE =
+  'O microfone está mandando silêncio total: nenhum som chega ao app. Confira se o microfone do computador não está mudo (tecla de mudo, ícone do microfone na barra de tarefas), se o navegador tem permissão de usar o microfone nas configurações do sistema, ou escolha outro microfone.'
+
+/** Abaixo disto (dBFS sem ponderação) não há sinal: microfone mudo ou bloqueado. */
+export const SILENCE_DBFS = -100
 
 export function explainError(e: unknown): MeterError {
   if (e instanceof MeterError) return e
@@ -82,6 +120,8 @@ export class Meter {
   private timer: number | null = null
   private nodes: AudioNode[] = []
   mode: 'worklet' | 'analyser' | null = null
+  /** Nome do microfone em uso (vazio se o navegador não informar). */
+  deviceLabel = ''
 
   get running() {
     return this.ctx !== null
@@ -99,10 +139,21 @@ export class Meter {
     }
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS)
+      stream = await navigator.mediaDevices.getUserMedia(constraintsFor(preferredMic))
     } catch (e) {
-      throw explainError(e)
+      const name = (e as { name?: string })?.name
+      // O microfone escolhido sumiu (desconectado): volta para o padrão.
+      if (preferredMic && (name === 'OverconstrainedError' || name === 'NotFoundError')) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS)
+        } catch (e2) {
+          throw explainError(e2)
+        }
+      } else {
+        throw explainError(e)
+      }
     }
+    this.deviceLabel = stream.getAudioTracks()[0]?.label ?? ''
     const ctx = new Ctx()
     this.ctx = ctx
     this.stream = stream
@@ -117,8 +168,8 @@ export class Meter {
         const node = new AudioWorkletNode(ctx, 'level-processor', {
           numberOfInputs: 1,
           numberOfOutputs: 0,
-          channelCount: 1,
-          channelCountMode: 'explicit',
+          channelCount: 2,
+          channelCountMode: 'clamped-max',
           processorOptions: { sections, windowSamples },
         })
         node.port.onmessage = (ev: MessageEvent<[number, number, number]>) => {

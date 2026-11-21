@@ -671,10 +671,7 @@ section {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     column-gap: 3rem;
   }
-  .live-head,
-  .reading,
-  .live-view,
-  .controls {
+  .measure-live > * {
     grid-column: 1;
   }
   .desk {

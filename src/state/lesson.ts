@@ -3,7 +3,7 @@
  * em tempos, mantém a tela ligada e registra lacunas.
  */
 import { WINDOW_MS } from '../config'
-import { Meter, MeterError, type LevelEvent } from '../audio/meter'
+import { Meter, MeterError, SILENCE_DBFS, SILENT_MIC_MESSAGE, setPreferredMic, type LevelEvent } from '../audio/meter'
 import { applyOffset } from '../lib/calibration'
 import { saveSession, unfinishedSession } from '../lib/db'
 import {
@@ -47,6 +47,10 @@ export interface LessonState {
   wave: number[]
   /** Nível equivalente (Leq) da aula até agora. */
   leqAula: number | null
+  /** O microfone está mandando silêncio total há alguns segundos. */
+  semSinal: boolean
+  /** Nome do microfone em uso. */
+  microfone: string
   /** Momento da aula em vigor (marcado pelo professor). */
   activity: ActivityKey
   /** Tempo seguido com o ruído de fundo acima do limiar de esforço vocal. */
@@ -73,6 +77,8 @@ export const lesson = createStore<LessonState>({
   recent: [],
   wave: [],
   leqAula: null,
+  semSinal: false,
+  microfone: '',
   activity: 'sem-marcacao',
   vocalStreakMs: 0,
   pausaVocal: false,
@@ -81,6 +87,11 @@ export const lesson = createStore<LessonState>({
 })
 
 const meter = new Meter()
+setPreferredMic(settings.get().microfoneId)
+settings.subscribe((st) => setPreferredMic(st.microfoneId))
+// Tempo seguido sem sinal nenhum do microfone.
+let silentMs = 0
+const SILENT_ALERT_MS = 3000
 let seg: Segment | null = null
 let nextReason: GapReason | null = null
 let lastLevelAt = 0
@@ -123,6 +134,7 @@ function onLevel(e: LevelEvent) {
     emaFast = emaSlow = 0
   }
   pushLevel(seg, e.dbfsA)
+  silentMs = e.dbfsZ < SILENCE_DBFS ? silentMs + WINDOW_MS : 0
 
   const lv = applyOffset(e.dbfsA, s.calibration)
   bgBuf.push(lv)
@@ -175,6 +187,8 @@ function onLevel(e: LevelEvent) {
     recent,
     wave: [...st.wave.slice(-(WAVE_MAX - 1)), lv],
     leqAula: 10 * Math.log10(leqE / leqN),
+    semSinal: silentMs >= SILENT_ALERT_MS,
+    microfone: meter.deviceLabel,
     error: null,
     calmMs: st.calmMs + (bandOf(lv, t) === 'calmo' ? WINDOW_MS : 0),
     ...pausa,
@@ -287,6 +301,7 @@ export async function startLesson(turma: string, disciplina: string) {
     recent: [],
     wave: [],
     leqAula: null,
+    semSinal: false,
     level: null,
     slow: null,
     lightBand: null,
@@ -303,6 +318,7 @@ export async function startLesson(turma: string, disciplina: string) {
   secAcc = []
   leqE = 0
   leqN = 0
+  silentMs = 0
   try {
     await meter.start()
   } catch (e) {
@@ -414,6 +430,7 @@ export async function measureWindows(
   if (lesson.get().session) throw new Error('Encerre a aula antes de fazer esta medição.')
   const m = new Meter()
   const values: number[] = []
+  let silent = 0
   const total = Math.round((seconds * 1000) / WINDOW_MS)
   return new Promise<number[]>((resolve, reject) => {
     signal?.addEventListener('abort', () => {
@@ -426,10 +443,12 @@ export async function measureWindows(
     }
     m.onLevel = (e) => {
       values.push(e.dbfsA)
+      if (e.dbfsZ < SILENCE_DBFS) silent++
       onProgress(values.length / total, e.dbfsA)
       if (values.length >= total) {
         m.stop()
-        resolve(values)
+        if (silent > values.length * 0.8) reject(new MeterError('sem-sinal', SILENT_MIC_MESSAGE))
+        else resolve(values)
       }
     }
     m.start().catch((e) => reject(e))
@@ -444,6 +463,41 @@ export async function measureForCalibration(
   const values = await measureWindows(seconds, onProgress)
   const energy = values.reduce((a, v) => a + Math.pow(10, v / 10), 0) / values.length
   return 10 * Math.log10(energy)
+}
+
+/**
+ * Troca o microfone. Com aula em andamento, religa a medição; o intervalo
+ * de troca vira lacuna "interrompido" se passar de 1 s.
+ */
+export async function switchMic(id: string) {
+  settings.set({ microfoneId: id })
+  const st = lesson.get()
+  if (!st.session || (st.status !== 'medindo' && st.status !== 'interrompido')) return
+  meter.stop()
+  silentMs = 0
+  lesson.set({ status: 'iniciando', semSinal: false, wave: [] })
+  try {
+    await meter.start()
+  } catch (e) {
+    lesson.set({ status: 'pausado', error: e as MeterError })
+    return
+  }
+  lastLevelAt = Date.now()
+  lesson.set({ status: 'medindo', microfone: meter.deviceLabel })
+}
+
+/**
+ * Remove a calibração (ex.: feita com o microfone mudo). Se há aula em
+ * andamento, ela passa a valores relativos, inclusive no relatório.
+ */
+export function removeCalibration() {
+  settings.set({ calibration: null })
+  const st = lesson.get()
+  if (st.session && st.session.calibration) {
+    st.session.calibration = null
+    lesson.set({ session: { ...st.session } })
+    void saveSession(st.session)
+  }
 }
 
 /** Marca o momento da aula (explicação, grupo…) a partir de agora. */

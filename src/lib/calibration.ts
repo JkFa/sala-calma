@@ -56,3 +56,13 @@ export function makeCalibration(
 export function applyOffset(dbfs: number, cal: Calibration | null): number {
   return dbfs + (cal ? cal.offset : UNCALIBRATED_OFFSET)
 }
+
+/**
+ * Ajuste acima disto só acontece se a calibração foi feita com o microfone
+ * mudo (silêncio digital virou "35 dB(A)"). Microfones reais ficam bem abaixo.
+ */
+export const OFFSET_SUSPEITO = 135
+
+export function calibracaoSuspeita(cal: Calibration | null): boolean {
+  return cal !== null && cal.offset > OFFSET_SUSPEITO
+}

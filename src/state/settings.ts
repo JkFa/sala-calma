@@ -34,6 +34,8 @@ export interface Settings {
   medidorVista: MedidorVista
   /** Janela do gráfico ao vivo, em segundos (30, 120 ou 600). */
   graficoJanelaS: number
+  /** Microfone escolhido ('' = padrão do sistema). */
+  microfoneId: string
 }
 
 const KEY = 'sala-calma:ajustes'
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   metaSemanalMin: 0,
   medidorVista: 'ambos',
   graficoJanelaS: 30,
+  microfoneId: '',
 }
 
 function load(): Settings {

@@ -5,6 +5,9 @@ import { settings } from '../state/settings'
 import { useStore } from '../state/store'
 import { dateLong, dec } from '../ui/format'
 import { MeterError } from '../audio/meter'
+import { calibracaoSuspeita } from '../lib/calibration'
+import { MicPicker } from '../ui/MicPicker'
+import { BadCalibration } from './Measure'
 
 const SECONDS = 10
 
@@ -70,6 +73,9 @@ export function Calibrate() {
       ) : (
         <p class="note note-warn">Ainda não calibrado. Por enquanto o app mostra só faixas relativas.</p>
       )}
+
+      {calibracaoSuspeita(cal) && <BadCalibration />}
+      <MicPicker />
 
       <fieldset class="methods">
         <legend>Como você quer calibrar?</legend>
