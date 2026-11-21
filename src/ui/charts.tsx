@@ -210,25 +210,6 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label, 
   )
 }
 
-/** Gráfico ao vivo, últimos minutos. */
-export function Spark({ values, thresholds }: { values: number[]; thresholds: Thresholds }) {
-  const w = 320
-  const h = 64
-  if (values.length < 2) return <div class="spark spark-empty" aria-hidden="true" />
-  const lo = Math.min(...values, thresholds.calmoAte - 8)
-  const hi = Math.max(...values, thresholds.altoDesde + 4)
-  const y = (v: number) => h - 4 - ((v - lo) / (hi - lo)) * (h - 8)
-  const x = (i: number) => w - (values.length - 1 - i) * (w / 119)
-  const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('')
-  return (
-    <svg class="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-      <line x1="0" x2={w} y1={y(thresholds.altoDesde)} y2={y(thresholds.altoDesde)} class="th th-alto" />
-      <line x1="0" x2={w} y1={y(thresholds.calmoAte)} y2={y(thresholds.calmoAte)} class="th th-calmo" />
-      <path d={d} class="line" vector-effect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
 /** Barra empilhada com o tempo em cada faixa, rótulos diretos. */
 export function BandBar({ ms }: { ms: Record<Band, number> }) {
   const total = ms.calmo + ms.atencao + ms.alto

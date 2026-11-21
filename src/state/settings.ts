@@ -7,6 +7,8 @@ import type { Thresholds } from '../lib/session'
 import { createStore } from './store'
 
 export type Theme = 'auto' | 'claro' | 'escuro'
+/** Como a tela Medir mostra o nível ao vivo. */
+export type MedidorVista = 'grafico' | 'ponteiros' | 'ambos'
 
 export interface Settings {
   thresholds: Thresholds
@@ -28,6 +30,10 @@ export interface Settings {
   semaforoSemNumeros: boolean
   /** Meta semanal de sala calma por turma, em minutos (0 = só mostra o total). */
   metaSemanalMin: number
+  /** Tela Medir: gráfico, medidores de ponteiro ou os dois. */
+  medidorVista: MedidorVista
+  /** Janela do gráfico ao vivo, em segundos (30, 120 ou 600). */
+  graficoJanelaS: number
 }
 
 const KEY = 'sala-calma:ajustes'
@@ -45,6 +51,8 @@ export const DEFAULT_SETTINGS: Settings = {
   lembreteVocalMin: 15,
   semaforoSemNumeros: false,
   metaSemanalMin: 0,
+  medidorVista: 'ambos',
+  graficoJanelaS: 30,
 }
 
 function load(): Settings {

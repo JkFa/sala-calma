@@ -10,11 +10,13 @@ import {
 } from '../state/lesson'
 import { settings } from '../state/settings'
 import { useStore } from '../state/store'
-import { Spark } from '../ui/charts'
+import { Gauge, LiveChart, gaugeRange } from '../ui/live'
+import type { MedidorVista } from '../state/settings'
 import { BAND_HINT, BAND_LABEL, clock, dec } from '../ui/format'
 import { BandShape, IconLight, IconPause, IconPlay, IconStop } from '../ui/icons'
 import { go } from '../ui/router'
 import { isIOS } from '../state/pwa'
+import { WINDOW_MS } from '../config'
 import { ACTIVITIES } from '../lib/activities'
 import { markActivity, dismissVocalBreak } from '../state/lesson'
 import { BREAK_TIPS } from '../lib/vocalbreak'
@@ -209,10 +211,7 @@ export function Measure() {
         )}
       </section>
 
-      <div class="live-spark">
-        <Spark values={l.recent} thresholds={s.thresholds} />
-        <p class="small soft">Últimos 2 minutos</p>
-      </div>
+      <LiveView />
 
       <div class="controls">
         {l.status === 'pausado' ? (
@@ -264,6 +263,68 @@ export function Measure() {
         </ul>
       </aside>
     </div>
+  )
+}
+
+const VISTAS: { id: MedidorVista; label: string }[] = [
+  { id: 'grafico', label: 'Gráfico' },
+  { id: 'ponteiros', label: 'Ponteiros' },
+  { id: 'ambos', label: 'Os dois' },
+]
+const JANELAS = [
+  { s: 30, label: '30 s' },
+  { s: 120, label: '2 min' },
+  { s: 600, label: '10 min' },
+]
+
+/** Gráfico ao vivo e/ou medidores de ponteiro, à escolha do professor. */
+function LiveView() {
+  const l = useStore(lesson)
+  const st = useStore(settings)
+  const s = l.session!
+  const cal = s.calibration !== null
+  const vista = st.medidorVista
+  const janela = st.graficoJanelaS
+  const showChart = vista !== 'ponteiros'
+  const showGauges = vista !== 'grafico'
+
+  // 30 s: uma leitura a cada 125 ms (mostra cada oscilação). 2 e 10 min: 1 ponto por segundo.
+  const chartValues = janela <= 30 ? l.wave : l.recent.slice(-janela)
+  const chartStep = janela <= 30 ? WINDOW_MS : 1000
+  const range = gaugeRange(s.thresholds, l.recent.length ? l.recent : l.wave)
+  const peakWin = l.wave.slice(-Math.round(10_000 / WINDOW_MS))
+  const peak = peakWin.length ? Math.max(...peakWin) : null
+  const live = l.status === 'medindo'
+
+  return (
+    <section class="live-view" aria-label="Nível ao vivo">
+      <div class="live-options">
+        <div class="seg" role="group" aria-label="Mostrar">
+          {VISTAS.map((v) => (
+            <button key={v.id} type="button" class="seg-btn" aria-pressed={vista === v.id} onClick={() => settings.set({ medidorVista: v.id })}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {showChart && (
+          <div class="seg" role="group" aria-label="Período do gráfico">
+            {JANELAS.map((j) => (
+              <button key={j.s} type="button" class="seg-btn" aria-pressed={janela === j.s} onClick={() => settings.set({ graficoJanelaS: j.s })}>
+                {j.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {showGauges && (
+        <div class="gauges">
+          <Gauge label="Agora" value={live ? l.level : null} peak={live ? peak : null} {...range} thresholds={s.thresholds} calibrated={cal} />
+          <Gauge label="Média de 3 s (semáforo)" value={live ? l.slow : null} {...range} thresholds={s.thresholds} calibrated={cal} />
+          <Gauge label="Média da aula (Leq)" value={l.leqAula} {...range} thresholds={s.thresholds} calibrated={cal} />
+        </div>
+      )}
+      {showChart && <LiveChart values={chartValues} stepMs={chartStep} thresholds={s.thresholds} calibrated={cal} />}
+    </section>
   )
 }
 

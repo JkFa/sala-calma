@@ -41,8 +41,12 @@ export interface LessonState {
   bateriaBaixa: boolean
   /** Sessão não encerrada encontrada ao abrir o app. */
   pendente: Session | null
-  /** Últimos ~2 min (1 ponto/s) para o gráfico ao vivo. */
+  /** Últimos ~10 min (1 ponto/s, Leq de 1 s) para o gráfico ao vivo. */
   recent: number[]
+  /** Últimos 30 s, uma leitura por janela de 125 ms, para o gráfico ao vivo. */
+  wave: number[]
+  /** Nível equivalente (Leq) da aula até agora. */
+  leqAula: number | null
   /** Momento da aula em vigor (marcado pelo professor). */
   activity: ActivityKey
   /** Tempo seguido com o ruído de fundo acima do limiar de esforço vocal. */
@@ -67,6 +71,8 @@ export const lesson = createStore<LessonState>({
   bateriaBaixa: false,
   pendente: null,
   recent: [],
+  wave: [],
+  leqAula: null,
   activity: 'sem-marcacao',
   vocalStreakMs: 0,
   pausaVocal: false,
@@ -81,6 +87,12 @@ let lastLevelAt = 0
 let emaFast = 0
 let emaSlow = 0
 let secAcc: number[] = []
+// Soma de energia da aula, para o Leq ao vivo.
+let leqE = 0
+let leqN = 0
+/** Quantos pontos guardar para o gráfico ao vivo. */
+export const RECENT_MAX = 600
+export const WAVE_MAX = Math.round(30_000 / WINDOW_MS)
 let saveTimer: number | null = null
 let watchdog: number | null = null
 let wakeLock: WakeLockSentinel | null = null
@@ -125,6 +137,8 @@ function onLevel(e: LevelEvent) {
     pausa.vocalStreakMs = streak.streakMs
   }
   const energy = Math.pow(10, lv / 10)
+  leqE += energy
+  leqN++
   const aF = 1 - Math.exp(-WINDOW_MS / 1000)
   const aS = 1 - Math.exp(-WINDOW_MS / 3000)
   emaFast = emaFast ? emaFast + aF * (energy - emaFast) : energy
@@ -148,7 +162,7 @@ function onLevel(e: LevelEvent) {
   let recent = st.recent
   if (secAcc.length >= 1000 / WINDOW_MS) {
     const e2 = secAcc.reduce((a, v) => a + Math.pow(10, v / 10), 0) / secAcc.length
-    recent = [...recent.slice(-119), 10 * Math.log10(e2)]
+    recent = [...recent.slice(-(RECENT_MAX - 1)), 10 * Math.log10(e2)]
     secAcc = []
   }
 
@@ -159,6 +173,8 @@ function onLevel(e: LevelEvent) {
     band: bandOf(level, t),
     lightBand,
     recent,
+    wave: [...st.wave.slice(-(WAVE_MAX - 1)), lv],
+    leqAula: 10 * Math.log10(leqE / leqN),
     error: null,
     calmMs: st.calmMs + (bandOf(lv, t) === 'calmo' ? WINDOW_MS : 0),
     ...pausa,
@@ -269,6 +285,8 @@ export async function startLesson(turma: string, disciplina: string) {
     session: s,
     error: null,
     recent: [],
+    wave: [],
+    leqAula: null,
     level: null,
     slow: null,
     lightBand: null,
@@ -283,6 +301,8 @@ export async function startLesson(turma: string, disciplina: string) {
   nextReason = null
   lastLevelAt = 0
   secAcc = []
+  leqE = 0
+  leqN = 0
   try {
     await meter.start()
   } catch (e) {
@@ -332,7 +352,7 @@ export async function endLesson(): Promise<string | null> {
   if (!s) return null
   finalize(s, Date.now())
   await saveSession(s)
-  lesson.set({ status: 'parado', session: null, level: null, slow: null, band: null, lightBand: null, recent: [], vocalStreakMs: 0, pausaVocal: false })
+  lesson.set({ status: 'parado', session: null, level: null, slow: null, band: null, lightBand: null, recent: [], wave: [], leqAula: null, vocalStreakMs: 0, pausaVocal: false })
   streak = null
   return s.id
 }
@@ -352,7 +372,11 @@ export async function continuePending() {
   const p = lesson.get().pendente
   if (!p) return
   p.marks ??= []
-  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], activity: activityAt(p.marks, Date.now()), vocalStreakMs: 0, pausaVocal: false, calmMs: computeReport(p).bandMs.calmo })
+  const rep = computeReport(p)
+  const n = Math.round(rep.measuredMs / p.windowMs)
+  leqN = Number.isFinite(rep.leq) ? n : 0
+  leqE = leqN ? Math.pow(10, rep.leq / 10) * n : 0
+  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], wave: [], leqAula: leqN ? rep.leq : null, activity: activityAt(p.marks, Date.now()), vocalStreakMs: 0, pausaVocal: false, calmMs: rep.bandMs.calmo })
   newStreak(p)
   seg = null
   nextReason = 'interrompido'

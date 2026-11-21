@@ -122,6 +122,14 @@ try {
     await page.waitForTimeout(6000)
     const band = await page.textContent('.reading-band')
     assert.match(band, /Calmo|Atenção|Alto/)
+    // Gráfico ao vivo oscila (não é uma reta) e há 3 medidores de ponteiro.
+    const ys = (await page.getAttribute('.livechart-line', 'd')).split(/[ML]/).filter(Boolean).map((p) => Number(p.split(',')[1]))
+    assert.ok(ys.length > 20, 'gráfico com poucos pontos: ' + ys.length)
+    assert.ok(Math.max(...ys) - Math.min(...ys) > 20, 'gráfico ao vivo quase reto')
+    assert.equal(await page.locator('.gauge').count(), 3)
+    await page.click('.seg-btn:has-text("Ponteiros")')
+    assert.equal(await page.locator('.livechart').count(), 0)
+    await page.click('.seg-btn:has-text("Os dois")')
   })
 
   await step('nenhuma requisição de rede durante a medição', async () => {
@@ -146,7 +154,7 @@ try {
   })
 
   await step('marca momentos; toque errado em até 10 s é corrigido', async () => {
-    await page.waitForTimeout(3000) // passa de 10 s desde "Explicação"
+    await page.waitForTimeout(5000) // passa de 10 s desde "Explicação"
     await page.click('.activity-btn:has-text("Grupo")')
     await page.click('.activity-btn:has-text("Prova")') // toque errado
     await page.click('.activity-btn:has-text("Grupo")') // corrige
