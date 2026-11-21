@@ -10,6 +10,10 @@ Medidor de ruído para a sala de aula. Usa o microfone do celular, **não grava 
 | --- | --- | --- |
 | <img src="docs/screenshots/medir-ao-vivo-390.png" width="220" alt="Tela de medição com a faixa Atenção e 55 dB(A)"> | <img src="docs/screenshots/semaforo-1280.png" width="320" alt="Semáforo em tela cheia na faixa Alto"> | <img src="docs/screenshots/relatorio-1280.png" width="260" alt="Relatório com linha do tempo, tempo por faixa e Tempo de Risco Vocal"> |
 
+| Evolução | Sala vazia | |
+| --- | --- | --- |
+| <img src="docs/screenshots/evolucao-390.png" width="220" alt="Evolução: esta semana, barras por semana e tabela por turma"> | <img src="docs/screenshots/sala-vazia-390.png" width="220" alt="Medição da sala vazia comparada com 35 dB(A) da OMS"> | |
+
 > As capturas vêm do teste automático, com um som de sala sintético. Não são medições reais.
 
 ## O que faz
@@ -17,7 +21,9 @@ Medidor de ruído para a sala de aula. Usa o microfone do celular, **não grava 
 1. **Mede a aula inteira.** Nível a cada 125 ms, ponderação A, em dB(A) quando o aparelho está calibrado. Modo mesa: mantém a tela ligada (Wake Lock), avisa bateria baixa, religa o microfone sozinho e marca os intervalos sem medição na linha do tempo.
 2. **Semáforo em tela cheia.** Calmo / Atenção / Alto, com cor, **forma** (círculo, triângulo, quadrado) e palavra. Meta da turma (“10 minutos na faixa calma”) que só soma, nunca desconta. Toque suave opcional ao cumprir a meta; dá para silenciar.
 3. **Relatório da aula.** Leq, L10, L90, pico, linha do tempo, tempo em cada faixa, **Tempo de Risco Vocal** e períodos sem medição. Exporta PDF (impressão), CSV e JSON.
-4. **Painel da escola, sem servidor.** A coordenação abre vários JSON exportados e vê, por turma, dia e horário, onde a acústica pesa mais. Imprime relatório para direção, CIPA ou Regional.
+4. **Evolução.** Semana a semana (últimas 8): Tempo de Risco Vocal somado e % do tempo na faixa alta, comparando com a semana anterior. Por turma: aula a aula e tendência (“mais calma”, “estável”, “mais barulhenta”), só afirmada com 4+ aulas e diferença de 5 pontos ou mais.
+5. **Sala vazia.** Medição de 1 ou 2 minutos sem a turma, com as condições anotadas (janelas, ventilador, recreio…). Compara o Leq com os 35 dB(A) da OMS **considerando a margem de erro** (se a diferença cabe na margem, o app diz que não dá para afirmar) e indica se o ruído é constante (ventilador, ar) ou intermitente (pátio, corredor). Separa problema do prédio de comportamento da turma.
+6. **Painel da escola, sem servidor.** A coordenação abre vários JSON exportados (aulas e salas vazias) e vê, por turma, dia e horário, onde a acústica pesa mais, além da tabela de salas vazias acima da recomendação. Imprime relatório para direção, CIPA ou Regional.
 
 ## O que não faz
 
@@ -80,8 +86,8 @@ Todos os limiares são ajustáveis em **Ajustes**. As fontes também aparecem de
 
 ## Testes e qualidade
 
-- `npm test`: 70 testes unitários. Ponderação A, Leq/L10/L90, calibração, Tempo de Risco Vocal, lacunas, exportação, agregação da escola e privacidade (nenhum caminho de gravação ou envio no código).
-- `npm run test:e2e`: no Chrome real, com som de sala sintético. Mede, confere que **nenhuma requisição sai para a rede durante a medição** (só leituras do cache local), que o IndexedDB guarda **só números e textos curtos**, pausa/lacuna no relatório, exportação e leitura no painel da escola, abertura **offline** e ausência de erros de instalabilidade do manifest.
+- `npm test`: 88 testes unitários. Ponderação A, Leq/L10/L90, calibração, Tempo de Risco Vocal, lacunas, exportação, agregação da escola, evolução semanal e por turma, sala vazia (comparação com a OMS e margem de erro) e privacidade (nenhum caminho de gravação ou envio no código).
+- `npm run test:e2e`: no Chrome real, com som de sala sintético. Migra um banco no formato da versão 1 sem perder aulas, mede, confere que **nenhuma requisição sai para a rede durante a medição** (só leituras do cache local), que o IndexedDB guarda **só números e textos curtos**, pausa/lacuna no relatório, tela de evolução, medição da sala vazia, exportação e leitura no painel da escola, abertura **offline** e ausência de erros de instalabilidade do manifest.
 - Lighthouse (mobile, build de produção): Desempenho 98–99, Acessibilidade 100, Boas práticas 100, SEO 100.
 - Peso: cerca de 32 kB de JS + 6 kB de CSS (gzip) na primeira carga, sem contar as fontes.
 
