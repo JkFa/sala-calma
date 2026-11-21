@@ -291,10 +291,12 @@ function LiveView() {
   // 30 s: uma leitura a cada 125 ms (mostra cada oscilação). 2 e 10 min: 1 ponto por segundo.
   const chartValues = janela <= 30 ? l.wave : l.recent.slice(-janela)
   const chartStep = janela <= 30 ? WINDOW_MS : 1000
-  const range = gaugeRange(s.thresholds, l.recent.length ? l.recent : l.wave)
+  const live = l.status === 'medindo'
+  const range = gaugeRange([...l.recent.slice(-120), ...l.wave])
+  // "Agora" segue cada leitura de 125 ms, como um medidor em resposta rápida.
+  const now = live && l.wave.length ? l.wave[l.wave.length - 1] : null
   const peakWin = l.wave.slice(-Math.round(10_000 / WINDOW_MS))
   const peak = peakWin.length ? Math.max(...peakWin) : null
-  const live = l.status === 'medindo'
 
   return (
     <section class="live-view" aria-label="Nível ao vivo">
@@ -318,7 +320,7 @@ function LiveView() {
       </div>
       {showGauges && (
         <div class="gauges">
-          <Gauge label="Agora" value={live ? l.level : null} peak={live ? peak : null} {...range} thresholds={s.thresholds} calibrated={cal} />
+          <Gauge label="Agora" value={now} peak={live ? peak : null} {...range} thresholds={s.thresholds} calibrated={cal} />
           <Gauge label="Média de 3 s (semáforo)" value={live ? l.slow : null} {...range} thresholds={s.thresholds} calibrated={cal} />
           <Gauge label="Média da aula (Leq)" value={l.leqAula} {...range} thresholds={s.thresholds} calibrated={cal} />
         </div>

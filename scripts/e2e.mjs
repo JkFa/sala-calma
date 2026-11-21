@@ -127,6 +127,13 @@ try {
     assert.ok(ys.length > 20, 'gráfico com poucos pontos: ' + ys.length)
     assert.ok(Math.max(...ys) - Math.min(...ys) > 20, 'gráfico ao vivo quase reto')
     assert.equal(await page.locator('.gauge').count(), 3)
+    // O ponteiro "Agora" se mexe (atributo transform do SVG).
+    const angles = new Set()
+    for (let i = 0; i < 8; i++) {
+      angles.add(await page.getAttribute('.gauge-needle >> nth=0', 'transform'))
+      await page.waitForTimeout(250)
+    }
+    assert.ok(angles.size >= 4, 'ponteiro parado: ' + [...angles].join(' | '))
     await page.click('.seg-btn:has-text("Ponteiros")')
     assert.equal(await page.locator('.livechart').count(), 0)
     await page.click('.seg-btn:has-text("Os dois")')

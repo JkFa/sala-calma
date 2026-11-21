@@ -229,7 +229,8 @@ export function Gauge({ label, value, peak, lo, hi, thresholds, calibrated }: Ga
             <title>Pico dos últimos 10 s</title>
           </path>
         )}
-        <g class="gauge-needle" style={{ transform: `rotate(${rot.toFixed(2)}deg)` }}>
+        {/* Atributo SVG (não CSS): gira igual em todos os navegadores. */}
+        <g class="gauge-needle" transform={`rotate(${rot.toFixed(2)} ${CX} ${CY})`}>
           <path d={`M${CX - 3},${CY}L${CX},${CY - R + 8}L${CX + 3},${CY}Z`} />
         </g>
         <circle cx={CX} cy={CY} r="7" class="gauge-hub" />
@@ -247,13 +248,29 @@ export function Gauge({ label, value, peak, lo, hi, thresholds, calibrated }: Ga
   )
 }
 
-/** Escala comum aos medidores: cobre as faixas e o que já foi medido. */
-export function gaugeRange(thresholds: Thresholds, seen: number[]) {
-  let lo = thresholds.calmoAte - 25
-  let hi = thresholds.altoDesde + 15
+/** Menor abertura do mostrador, em dB. */
+const GAUGE_MIN_SPAN = 25
+
+/**
+ * Escala comum aos medidores, ajustada ao que foi medido nos últimos
+ * minutos. Com escala fixa, um microfone de computador (sinal fraco, que
+ * varia poucos dB) deixava os ponteiros quase parados no começo do
+ * mostrador.
+ */
+export function gaugeRange(seen: number[]) {
+  if (!seen.length) return { lo: 30, hi: 80 }
+  let vmin = Infinity
+  let vmax = -Infinity
   for (const v of seen) {
-    if (v < lo) lo = v
-    if (v > hi) hi = v
+    if (v < vmin) vmin = v
+    if (v > vmax) vmax = v
   }
-  return { lo: Math.floor(lo / 5) * 5, hi: Math.ceil(hi / 5) * 5 }
+  let lo = Math.floor((vmin - 5) / 5) * 5
+  let hi = Math.ceil((vmax + 5) / 5) * 5
+  if (hi - lo < GAUGE_MIN_SPAN) {
+    const mid = (lo + hi) / 2
+    lo = Math.floor((mid - GAUGE_MIN_SPAN / 2) / 5) * 5
+    hi = lo + Math.ceil(GAUGE_MIN_SPAN / 5) * 5
+  }
+  return { lo, hi }
 }
