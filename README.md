@@ -2,7 +2,7 @@
 
 Medidor de ruído para a sala de aula. Usa o microfone do celular, **não grava nem envia áudio**, mostra um semáforo que a turma entende e gera relatórios para o professor e para a escola.
 
-- **Site:** https://jkfa.github.io/sala-calma/ (GitHub Pages). Vercel: pendente de `vercel login`; ver Publicação.
+- **Site:** https://sala-calma.vercel.app (plano B: https://jkfa.github.io/sala-calma/)
 - PWA gratuito, funciona offline, instala em Android, iPhone e computador.
 - Sem backend, sem conta, sem analytics. Tudo fica no aparelho.
 
