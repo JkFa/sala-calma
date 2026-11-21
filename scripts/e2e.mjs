@@ -117,6 +117,8 @@ try {
     page.on('requestfinished', async (r) => requests.push({ url: r.url(), method: r.method(), body: r.postData(), sw: (await r.response())?.fromServiceWorker() }))
     await page.click('button:has-text("Começar a medir")')
     await page.waitForSelector('.reading-band', { timeout: 10000 })
+    await page.click('.activity-btn:has-text("Explicação")')
+    assert.equal(await page.getAttribute('.activity-btn:has-text("Explicação")', 'aria-pressed'), 'true')
     await page.waitForTimeout(6000)
     const band = await page.textContent('.reading-band')
     assert.match(band, /Calmo|Atenção|Alto/)
@@ -143,6 +145,26 @@ try {
     await page.goto(URL + '#/medir')
   })
 
+  await step('marca momentos; toque errado em até 10 s é corrigido', async () => {
+    await page.waitForTimeout(3000) // passa de 10 s desde "Explicação"
+    await page.click('.activity-btn:has-text("Grupo")')
+    await page.click('.activity-btn:has-text("Prova")') // toque errado
+    await page.click('.activity-btn:has-text("Grupo")') // corrige
+    assert.equal(await page.getAttribute('.activity-btn:has-text("Grupo")', 'aria-pressed'), 'true')
+    const marks = await page.evaluate(
+      () =>
+        new Promise((res) => {
+          const r = indexedDB.open('sala-calma')
+          r.onsuccess = () => {
+            const g = r.result.transaction('sessions').objectStore('sessions').getAll()
+            g.onsuccess = () => res(g.result.find((s) => s.endedAt === null)?.marks?.map((m) => m.kind))
+          }
+        }),
+    )
+    assert.deepEqual(marks, ['explicacao', 'grupo'])
+    if (SHOTS) await shoot('momentos', [390])
+  })
+
   await step('pausa vira lacuna; encerra e abre relatório', async () => {
     await page.waitForTimeout(1500)
     await page.click('button:has-text("Pausar")')
@@ -154,6 +176,10 @@ try {
     assert.match(await page.textContent('.report h1'), /8º A · Geografia/)
     assert.match(await page.textContent('.report'), /Períodos sem medição/)
     assert.match(await page.textContent('.report'), /pausa sua/)
+    const acts = await page.textContent('.activity-table')
+    assert.match(acts, /Explicação/)
+    assert.match(acts, /Grupo/)
+    assert.equal(await page.locator('.act-strip').count(), 1)
   })
 
   if (SHOTS) await shoot('relatorio')
@@ -239,6 +265,7 @@ try {
     const path = await dl.path()
     const json = JSON.parse((await import('node:fs')).readFileSync(path, 'utf8'))
     assert.equal(json.formato, 'sala-calma/aula')
+    assert.deepEqual(json.marcas.map((m) => m[1]), ['explicacao', 'grupo'])
     // Duas aulas fictícias extras para o painel ter o que agregar.
     const extra = (turma, iso, leq, alto) => ({
       ...json,
@@ -259,6 +286,7 @@ try {
     assert.match(await page.textContent('.school-summary'), /3\s*aulas/)
     const school = await page.textContent('.school')
     assert.match(school, /Salas vazias/)
+    assert.match(school, /Por momento da aula/)
     assert.match(school, /Sala 7 \(pátio\)/)
     assert.match(school, /bem acima/)
   })

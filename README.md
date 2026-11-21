@@ -10,9 +10,9 @@ Medidor de ruído para a sala de aula. Usa o microfone do celular, **não grava 
 | --- | --- | --- |
 | <img src="docs/screenshots/medir-ao-vivo-390.png" width="220" alt="Tela de medição com a faixa Atenção e 55 dB(A)"> | <img src="docs/screenshots/semaforo-1280.png" width="320" alt="Semáforo em tela cheia na faixa Alto"> | <img src="docs/screenshots/relatorio-1280.png" width="260" alt="Relatório com linha do tempo, tempo por faixa e Tempo de Risco Vocal"> |
 
-| Evolução | Sala vazia | |
+| Momentos da aula | Evolução | Sala vazia |
 | --- | --- | --- |
-| <img src="docs/screenshots/evolucao-390.png" width="220" alt="Evolução: esta semana, barras por semana e tabela por turma"> | <img src="docs/screenshots/sala-vazia-390.png" width="220" alt="Medição da sala vazia comparada com 35 dB(A) da OMS"> | |
+| <img src="docs/screenshots/momentos-390.png" width="220" alt="Botões para marcar o momento da aula durante a medição"> | <img src="docs/screenshots/evolucao-390.png" width="220" alt="Evolução: esta semana, barras por semana e tabela por turma"> | <img src="docs/screenshots/sala-vazia-390.png" width="220" alt="Medição da sala vazia comparada com 35 dB(A) da OMS"> |
 
 > As capturas vêm do teste automático, com um som de sala sintético. Não são medições reais.
 
