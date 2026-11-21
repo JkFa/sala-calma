@@ -2,7 +2,7 @@
  * Controle da aula em andamento: liga o medidor à sessão, salva de tempos
  * em tempos, mantém a tela ligada e registra lacunas.
  */
-import { WINDOW_MS } from '../config'
+import { UNCALIBRATED_OFFSET, WINDOW_MS } from '../config'
 import { Meter, MeterError, SILENCE_DBFS, SILENT_MIC_MESSAGE, setPreferredMic, type LevelEvent } from '../audio/meter'
 import { applyOffset } from '../lib/calibration'
 import { saveSession, unfinishedSession } from '../lib/db'
@@ -50,7 +50,7 @@ export interface LessonState {
   leqAula: number | null
   /**
    * O microfone não está captando a sala: silêncio total há alguns
-   * segundos, ou nível parado (variação < 3 dB) por 20 s. Numa aula isso
+   * segundos, ou nível parado (variação < 1 dB) por 20 s. Numa aula isso
    * não acontece; acontece com a entrada de fone sem fone ligado.
    */
   semSinal: boolean
@@ -117,13 +117,14 @@ function maybeFindMic(semSinal: boolean, wave: number[]) {
   let suspeito = semSinal
   if (!suspeito && Date.now() - micSince >= EARLY_CHECK_MS && wave.length >= 32) {
     const last = wave.slice(-32)
-    suspeito = Math.max(...last) - Math.min(...last) < FLAT_DB
+    suspeito = Math.max(...last) - Math.min(...last) < EARLY_FLAT_DB
   }
   if (!suspeito) return
   probing = true
   micsDescartados.add(label)
   lesson.set({ procurandoMic: true })
-  void findWorkingMic(label)
+  const off = lesson.get().session?.calibration?.offset ?? UNCALIBRATED_OFFSET
+  void findWorkingMic(label, wave.slice(-32).map((v) => v - off))
     .then(async (best) => {
       const st = lesson.get()
       if (best && st.session && (st.status === 'medindo' || st.status === 'interrompido')) {
@@ -546,9 +547,14 @@ export async function switchMic(id: string) {
   lesson.set({ status: 'medindo', microfone: meter.deviceLabel })
 }
 
-/** Nível parado: os últimos 20 s (1 ponto/s) variam menos de 3 dB. */
+/**
+ * Nível parado: os últimos 20 s (1 ponto/s) variam menos de 1 dB. Chiado
+ * de entrada sem microfone varia ~0,3 dB; uma sala real, mesmo quieta, mais.
+ */
 export const FLAT_SECONDS = 20
-export const FLAT_DB = 3
+export const FLAT_DB = 1
+/** Checagem rápida (só para procurar outro microfone, sem aviso). */
+const EARLY_FLAT_DB = 3
 export function isFlat(recent: number[]): boolean {
   if (recent.length < FLAT_SECONDS) return false
   const last = recent.slice(-FLAT_SECONDS)

@@ -6,11 +6,9 @@
  */
 import { listMics, Meter, SILENCE_DBFS, type MicInfo } from './meter'
 
-const PROBE_MS = 3000
+const PROBE_MS = 4000
 /** Alguns microfones mandam zeros no primeiro segundo ao ligar. */
-const WARMUP_MS = 1000
-/** Variação mínima (dB) para dizer que o microfone ouve a sala. */
-export const LIVE_SWING_DB = 6
+const WARMUP_MS = 1500
 
 export interface ProbeResult extends MicInfo {
   swing: number
@@ -32,23 +30,43 @@ export async function probeMic(mic: MicInfo, ms = PROBE_MS): Promise<ProbeResult
   }
   await new Promise((r) => setTimeout(r, ms))
   m.stop()
-  if (vals.length < 4) return { ...mic, swing: 0, mean: -120 }
-  const sorted = [...vals].sort((a, b) => a - b)
+  return { ...mic, ...summarize(vals) }
+}
+
+
+/** Resumo de uma série de leituras (dBFS ponderado A, janelas de 125 ms). */
+export function summarize(dbfs: number[]): { swing: number; mean: number } {
+  if (dbfs.length < 4) return { swing: 0, mean: -120 }
+  const sorted = [...dbfs].sort((a, b) => a - b)
   const p = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]
-  const mean = 10 * Math.log10(vals.reduce((a, v) => a + Math.pow(10, v / 10), 0) / vals.length)
-  return { ...mic, swing: p(0.95) - p(0.05), mean }
+  const mean = 10 * Math.log10(dbfs.reduce((a, v) => a + Math.pow(10, v / 10), 0) / dbfs.length)
+  return { swing: p(0.95) - p(0.05), mean }
 }
 
 /**
- * Testa os outros microfones e devolve o melhor que ouve a sala, ou null.
- * `skipLabel`: o microfone atual (já sabemos que não funciona).
+ * Testa os outros microfones ao mesmo tempo e devolve um que ouça a sala
+ * claramente melhor que o atual, ou null. Melhor = varia pelo menos 2 dB
+ * a mais, ou capta 10 dB a mais de som (e varia um pouco mais). Comparar com o atual (em vez de
+ * um limite fixo) funciona também com a sala em silêncio, quando até um
+ * microfone bom varia pouco.
+ * `current`: leituras recentes do microfone em uso (dBFS A).
  */
-export async function findWorkingMic(skipLabel: string): Promise<ProbeResult | null> {
-  const mics = (await listMics()).filter((m) => m.label !== skipLabel && !/monitor/i.test(m.label))
+export async function findWorkingMic(currentLabel: string, current: number[]): Promise<ProbeResult | null> {
+  const others = (await listMics()).filter((m) => m.label !== currentLabel && !/monitor/i.test(m.label))
+  if (!others.length) return null
+  const base = summarize(current)
+  const res = await Promise.all(others.map((m) => probeMic(m)))
+  console.debug('[Sala Calma] microfones', { atual: currentLabel, ...base }, res)
   let best: ProbeResult | null = null
-  for (const mic of mics) {
-    const r = await probeMic(mic)
-    if (r && r.swing >= LIVE_SWING_DB && (!best || r.swing > best.swing)) best = r
+  for (const r of res) {
+    if (!r) continue
+    // Chiado de entrada sem nada ligado: ~0,5 dB de variação. Um microfone
+    // de verdade numa sala silenciosa varia mais e capta bem mais som.
+    // Precisa captar pelo menos o mesmo som que o atual: uma entrada que só
+    // "varia" por estar ligando (transiente) não conta.
+    const better =
+      (r.swing >= base.swing + 2 && r.mean >= base.mean - 3) || (r.mean >= base.mean + 10 && r.swing >= base.swing + 0.5)
+    if (better && (!best || r.mean > best.mean)) best = r
   }
   return best
 }

@@ -33,7 +33,9 @@ function MicTest({ onDone }: { onDone: () => void }) {
     meter.current = m
     let min = Infinity
     let max = -Infinity
+    const seen: number[] = []
     m.onLevel = (e) => {
+      seen.push(e.dbfsA)
       min = Math.min(min, e.dbfsA)
       max = Math.max(max, e.dbfsA)
       setSt({ phase: 'testando', level: e.dbfsA, min, max })
@@ -56,7 +58,7 @@ function MicTest({ onDone }: { onDone: () => void }) {
       }
       // Não reagiu: testa os outros microfones e escolhe o que ouve a sala.
       setSt({ phase: 'procurando', mic })
-      const best = await findWorkingMic(mic)
+      const best = await findWorkingMic(mic, seen.slice(8))
       if (best) {
         await switchMic(best.id)
         setSt({ phase: 'trocado', mic, novo: best.label })
