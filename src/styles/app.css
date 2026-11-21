@@ -1232,3 +1232,30 @@ section {
 .storage li {
   margin-bottom: 0.4rem;
 }
+
+/* ---------- Lembrete de pausa vocal ---------- */
+
+.vocal-break {
+  border: 1.5px solid var(--accent);
+  border-left-width: 6px;
+  border-radius: var(--radius-s);
+  padding: 0.9rem 1rem 0.8rem;
+  background: var(--paper-raised);
+}
+.vocal-break p {
+  margin: 0 0 0.6rem;
+}
+.vocal-break-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step-1);
+}
+@media (min-width: 60rem) {
+  .vocal-break {
+    grid-column: 1;
+  }
+}
+.live-break {
+  color: var(--accent);
+  font-weight: 600;
+}

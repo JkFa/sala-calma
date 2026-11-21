@@ -66,6 +66,7 @@ import { IconDownload, IconPrint } from '../ui/icons'
 import { go } from '../ui/router'
 import { APP } from '../config'
 import { ShareButtons } from '../ui/ShareButtons'
+import { analyzeStreaks } from '../lib/vocalbreak'
 import { appUrl, lessonSummaryText } from '../lib/share'
 
 const GAP_LABEL = {
@@ -85,6 +86,7 @@ export function LessonReport({ id }: { id: string }) {
   const r = useMemo(() => (s ? computeReport(s) : null), [s])
   const points = useMemo(() => (s ? perSecond(s) : []), [s])
   const acts = useMemo(() => (s?.marks?.length ? statsByActivity(s) : null), [s])
+  const streaks = useMemo(() => (s ? analyzeStreaks(s, 0) : null), [s])
 
   if (s === undefined) return <p class="soft">Carregando…</p>
   if (s === null || !r)
@@ -201,6 +203,18 @@ export function LessonReport({ id }: { id: string }) {
               a partir do qual a voz tende a subir para ser ouvida. O cálculo usa o fundo (L90 de cada 10 s), para não contar a sua
               própria fala.
             </p>
+            {streaks && (streaks.longestMs >= 60_000 || !!s.lembretes?.length) && (
+              <p>
+                {streaks.longestMs >= 60_000 && (
+                  <>
+                    Maior sequência seguida: <strong class="num">{dur(streaks.longestMs)}</strong>.
+                  </>
+                )}
+                {s.lembretes?.length
+                  ? ` O app sugeriu pausa de voz ${s.lembretes.length === 1 ? 'uma vez' : `${s.lembretes.length} vezes`} (${s.lembretes.map(hhmm).join(', ')}).`
+                  : ''}
+              </p>
+            )}
             <p class="small soft">
               É um indicador de exposição. Não mede a sua voz e não é diagnóstico.
               {!cal && ' Sem calibração, este tempo é só uma estimativa grosseira.'}

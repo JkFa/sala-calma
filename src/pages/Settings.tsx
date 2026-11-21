@@ -82,6 +82,27 @@ export function SettingsPage() {
       </section>
 
       <section>
+        <h2>Lembrete de pausa vocal</h2>
+        <div class="field">
+          <label for="lembrete">
+            Sugerir uma pausa de voz <span class="hint">aviso discreto na tela Medir, sem som e sem vibração</span>
+          </label>
+          <select id="lembrete" value={s.lembreteVocalMin} onChange={(e) => settings.set({ lembreteVocalMin: Number(e.currentTarget.value) })}>
+            <option value={0}>Desligado</option>
+            <option value={10}>Após 10 min seguidos de esforço vocal</option>
+            <option value={15}>Após 15 min seguidos de esforço vocal</option>
+            <option value={20}>Após 20 min seguidos de esforço vocal</option>
+            <option value={30}>Após 30 min seguidos de esforço vocal</option>
+          </select>
+        </div>
+        <p class="small soft">
+          Conta o tempo seguido com o ruído de fundo acima do limiar de esforço vocal ({t.esforcoVocal} dB(A)). Menos de 1 minuto de
+          sala calma só pausa a contagem; 1 minuto ou mais zera. Não aparece no semáforo projetado. Vale a partir da próxima aula.
+          {!s.calibration && ' Sem calibração, a contagem é uma estimativa grosseira.'}
+        </p>
+      </section>
+
+      <section>
         <h2>Aparência e som</h2>
         <div class="field">
           <label for="tema">Tema</label>

@@ -45,6 +45,8 @@ export interface Session {
   gaps: Gap[]
   /** Momentos da aula marcados pelo professor (opcional; aulas antigas não têm). */
   marks?: Mark[]
+  /** Instantes (epoch ms) em que o lembrete de pausa vocal apareceu. */
+  lembretes?: number[]
 }
 
 export type Band = 'calmo' | 'atencao' | 'alto'

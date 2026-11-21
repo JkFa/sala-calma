@@ -22,6 +22,8 @@ export interface Settings {
   viuDicaMesa: boolean
   /** Data (ISO) do último backup salvo ou enviado. */
   ultimoBackup: string | null
+  /** Lembrete de pausa vocal após N minutos seguidos de esforço (0 = desligado). */
+  lembreteVocalMin: number
 }
 
 const KEY = 'sala-calma:ajustes'
@@ -36,6 +38,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ultimaDisciplina: '',
   viuDicaMesa: false,
   ultimoBackup: null,
+  lembreteVocalMin: 15,
 }
 
 function load(): Settings {

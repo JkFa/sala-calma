@@ -19,6 +19,8 @@ import {
 } from '../lib/session'
 import { settings } from './settings'
 import { activityAt, addMark, type ActivityId, type ActivityKey } from '../lib/activities'
+import { percentile } from '../lib/levels'
+import { VocalStreak } from '../lib/vocalbreak'
 import { createStore } from './store'
 
 export type Status = 'parado' | 'iniciando' | 'medindo' | 'pausado' | 'interrompido'
@@ -42,6 +44,12 @@ export interface LessonState {
   recent: number[]
   /** Momento da aula em vigor (marcado pelo professor). */
   activity: ActivityKey
+  /** Tempo seguido com o ruído de fundo acima do limiar de esforço vocal. */
+  vocalStreakMs: number
+  /** Lembrete de pausa vocal visível. */
+  pausaVocal: boolean
+  /** Qual dica mostrar no lembrete. */
+  pausaDica: number
 }
 
 export const lesson = createStore<LessonState>({
@@ -57,6 +65,9 @@ export const lesson = createStore<LessonState>({
   pendente: null,
   recent: [],
   activity: 'sem-marcacao',
+  vocalStreakMs: 0,
+  pausaVocal: false,
+  pausaDica: 0,
 })
 
 const meter = new Meter()
@@ -69,6 +80,14 @@ let secAcc: number[] = []
 let saveTimer: number | null = null
 let watchdog: number | null = null
 let wakeLock: WakeLockSentinel | null = null
+// Ruído de fundo ao vivo: L90 das últimas 10 s (80 janelas), por trecho.
+let bgBuf: number[] = []
+let streak: VocalStreak | null = null
+
+function newStreak(s: Session) {
+  streak = new VocalStreak({ threshold: s.thresholds.esforcoVocal, alertAfterMs: settings.get().lembreteVocalMin * 60_000 })
+  bgBuf = []
+}
 
 const HYST = 1.5
 
@@ -81,6 +100,8 @@ function onLevel(e: LevelEvent) {
   lastLevelAt = e.t
   if (!seg || nextReason || gapSince > 1000) {
     const reason: GapReason = nextReason ?? (document.hidden ? 'segundo-plano' : 'interrompido')
+    if (seg && streak) streak.gap(Math.max(0, e.t - (seg.start + seg.levels.length * s.windowMs)))
+    bgBuf = []
     seg = openSegment(s, e.t, reason)
     nextReason = null
     emaFast = emaSlow = 0
@@ -88,6 +109,17 @@ function onLevel(e: LevelEvent) {
   pushLevel(seg, e.dbfsA)
 
   const lv = applyOffset(e.dbfsA, s.calibration)
+  bgBuf.push(lv)
+  if (bgBuf.length > 10_000 / WINDOW_MS) bgBuf.shift()
+  let pausa: Partial<LessonState> = {}
+  if (streak) {
+    if (streak.update(percentile(bgBuf, 10), WINDOW_MS)) {
+      s.lembretes = [...(s.lembretes ?? []), e.t]
+      pausa = { pausaVocal: true, pausaDica: (st.pausaDica + 1) % 4 }
+      void saveSession(s)
+    }
+    pausa.vocalStreakMs = streak.streakMs
+  }
   const energy = Math.pow(10, lv / 10)
   const aF = 1 - Math.exp(-WINDOW_MS / 1000)
   const aS = 1 - Math.exp(-WINDOW_MS / 3000)
@@ -124,7 +156,13 @@ function onLevel(e: LevelEvent) {
     lightBand,
     recent,
     error: null,
+    ...pausa,
   })
+}
+
+/** O professor viu o lembrete. */
+export function dismissVocalBreak() {
+  lesson.set({ pausaVocal: false })
 }
 
 meter.onLevel = onLevel
@@ -221,7 +259,20 @@ export async function startLesson(turma: string, disciplina: string) {
   const st = settings.get()
   const s = newSession({ turma, disciplina, calibration: st.calibration, thresholds: st.thresholds })
   settings.set({ ultimaTurma: turma, ultimaDisciplina: disciplina })
-  lesson.set({ status: 'iniciando', session: s, error: null, recent: [], level: null, slow: null, lightBand: null, band: null, activity: 'sem-marcacao' })
+  lesson.set({
+    status: 'iniciando',
+    session: s,
+    error: null,
+    recent: [],
+    level: null,
+    slow: null,
+    lightBand: null,
+    band: null,
+    activity: 'sem-marcacao',
+    vocalStreakMs: 0,
+    pausaVocal: false,
+  })
+  newStreak(s)
   seg = null
   nextReason = null
   lastLevelAt = 0
@@ -275,7 +326,8 @@ export async function endLesson(): Promise<string | null> {
   if (!s) return null
   finalize(s, Date.now())
   await saveSession(s)
-  lesson.set({ status: 'parado', session: null, level: null, slow: null, band: null, lightBand: null, recent: [] })
+  lesson.set({ status: 'parado', session: null, level: null, slow: null, band: null, lightBand: null, recent: [], vocalStreakMs: 0, pausaVocal: false })
+  streak = null
   return s.id
 }
 
@@ -294,7 +346,8 @@ export async function continuePending() {
   const p = lesson.get().pendente
   if (!p) return
   p.marks ??= []
-  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], activity: activityAt(p.marks, Date.now()) })
+  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], activity: activityAt(p.marks, Date.now()), vocalStreakMs: 0, pausaVocal: false })
+  newStreak(p)
   seg = null
   nextReason = 'interrompido'
   try {

@@ -403,6 +403,57 @@ try {
     await ctx2.close()
   })
 
+  await step('lembrete de pausa vocal: aparece sem som, some com Ok, não vai para o semáforo, entra no relatório', async () => {
+    // Navegador separado, com o lembrete em 3 s (só possível pelo armazenamento; a tela oferece 10+ min).
+    const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-BR' })
+    await ctx3.grantPermissions(['microphone'], { origin: URL.slice(0, -1) })
+    const p3 = await ctx3.newPage()
+    p3.on('pageerror', (e) => errors.push('[lembrete] ' + e.message))
+    await p3.goto(URL + '#/medir')
+    await p3.evaluate(() =>
+      localStorage.setItem(
+        'sala-calma:ajustes',
+        JSON.stringify({ lembreteVocalMin: 0.05, calibration: { offset: 104.2, method: 'medidor', margin: 3, date: new Date().toISOString(), device: 't' } }),
+      ),
+    )
+    await p3.reload()
+    // Nenhum som pode tocar: conta AudioContext tocando para a saída.
+    await p3.evaluate(() => {
+      window.__sons = 0
+      const orig = AudioNode.prototype.connect
+      AudioNode.prototype.connect = function (dest, ...r) {
+        if (dest instanceof AudioDestinationNode) window.__sons++
+        return orig.call(this, dest, ...r)
+      }
+    })
+    await p3.click('button:has-text("Começar a medir")')
+    await p3.waitForSelector('.vocal-break', { timeout: 15000 })
+    assert.match(await p3.textContent('.vocal-break'), /pausa de voz/)
+    assert.equal(await p3.evaluate(() => window.__sons), 0)
+    if (SHOTS) {
+      const keep = page
+      page = p3
+      await shoot('pausa-vocal', [390])
+      page = keep
+    }
+    await p3.click('.vocal-break button:has-text("Ok")')
+    assert.equal(await p3.locator('.vocal-break').count(), 0)
+    // Em outra tela, só a marquinha no topo
+    await p3.goto(URL + '#/aulas')
+    await p3.waitForSelector('.live-break', { timeout: 10000 })
+    // No semáforo projetado, nada de lembrete
+    await p3.goto(URL + '#/semaforo')
+    await p3.waitForSelector('.light-word', { timeout: 8000 })
+    await p3.waitForTimeout(3500)
+    assert.equal(await p3.locator('.vocal-break, .live-break').count(), 0)
+    await p3.goto(URL + '#/medir')
+    await p3.click('button:has-text("Encerrar aula")')
+    await p3.waitForSelector('.report h1')
+    const v = await p3.textContent('.vocal')
+    assert.match(v, /O app sugeriu pausa de voz (uma vez|\d+ vezes)/)
+    await ctx3.close()
+  })
+
   await step('abre offline depois da primeira visita', async () => {
     await ctx.setOffline(true)
     await page.goto(URL + '#/ajustes')

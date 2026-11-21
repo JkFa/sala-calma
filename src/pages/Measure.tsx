@@ -16,7 +16,27 @@ import { BandShape, IconLight, IconPause, IconPlay, IconStop } from '../ui/icons
 import { go } from '../ui/router'
 import { isIOS } from '../state/pwa'
 import { ACTIVITIES } from '../lib/activities'
-import { markActivity } from '../state/lesson'
+import { markActivity, dismissVocalBreak } from '../state/lesson'
+import { BREAK_TIPS } from '../lib/vocalbreak'
+import { settings as settingsStore } from '../state/settings'
+
+/** Lembrete de pausa vocal: discreto, sem som, sem vibração. */
+function VocalBreak() {
+  const l = useStore(lesson)
+  if (!l.pausaVocal) return null
+  const min = Math.floor(l.vocalStreakMs / 60_000)
+  return (
+    <div class="vocal-break" role="status">
+      <p class="vocal-break-title">Hora de uma pausa de voz?</p>
+      <p>
+        Faz {min} minutos seguidos que o ruído de fundo está acima do nível em que a voz tende a subir. {BREAK_TIPS[l.pausaDica % BREAK_TIPS.length]}
+      </p>
+      <button class="btn" onClick={dismissVocalBreak}>
+        Ok
+      </button>
+    </div>
+  )
+}
 
 /** "O que está acontecendo agora?" — marca o momento da aula. */
 function ActivityPicker() {
@@ -163,6 +183,8 @@ export function Measure() {
         </p>
       </div>
 
+      <VocalBreak />
+
       <section class={`reading ${band ? 'reading-' + band : ''}`} aria-live="polite" aria-atomic="true">
         {l.status === 'pausado' ? (
           <p class="reading-paused">Medição pausada.</p>
@@ -228,6 +250,13 @@ export function Measure() {
             {l.wakeLock === 'ativo'
               ? 'Tela mantida ligada.'
               : 'Este navegador não mantém a tela ligada sozinho: aumente o tempo de bloqueio da tela nos ajustes do aparelho.'}
+          </li>
+          <li>
+            {settingsStore.get().lembreteVocalMin > 0
+              ? l.vocalStreakMs >= 60_000
+                ? `Esforço vocal agora: ${Math.floor(l.vocalStreakMs / 60_000)} min seguidos. Lembrete de pausa aos ${settingsStore.get().lembreteVocalMin} min, só nesta tela, sem som.`
+                : `Lembrete de pausa de voz após ${settingsStore.get().lembreteVocalMin} min seguidos de esforço vocal, só nesta tela, sem som.`
+              : 'Lembrete de pausa de voz desligado (Ajustes).'}
           </li>
           {l.bateriaBaixa && <li class="warn">Bateria abaixo de 20%. Ligue o carregador para não perder o fim da aula.</li>}
           <li>Se o microfone parar (ligação, outro app), o app tenta religar sozinho e marca o intervalo como “sem medição”.</li>

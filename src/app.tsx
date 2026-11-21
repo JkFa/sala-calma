@@ -62,6 +62,7 @@ function LiveDot() {
     <a href="#/medir" class="live-dot" aria-label="Aula em andamento: voltar para a medição">
       <span class={`dot ${l.status === 'medindo' ? 'on' : ''}`} />
       {l.status === 'medindo' ? 'medindo' : l.status === 'pausado' ? 'pausada' : 'retomando'}
+      {l.pausaVocal && <span class="live-break"> · pausa de voz?</span>}
     </a>
   )
 }
