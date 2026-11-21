@@ -122,6 +122,8 @@ export class Meter {
   mode: 'worklet' | 'analyser' | null = null
   /** Nome do microfone em uso (vazio se o navegador não informar). */
   deviceLabel = ''
+  /** Usa este microfone em vez do escolhido nos ajustes (teste de microfones). */
+  deviceOverride: string | null = null
 
   get running() {
     return this.ctx !== null
@@ -139,11 +141,11 @@ export class Meter {
     }
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia(constraintsFor(preferredMic))
+      stream = await navigator.mediaDevices.getUserMedia(constraintsFor(this.deviceOverride ?? preferredMic))
     } catch (e) {
       const name = (e as { name?: string })?.name
       // O microfone escolhido sumiu (desconectado): volta para o padrão.
-      if (preferredMic && (name === 'OverconstrainedError' || name === 'NotFoundError')) {
+      if (this.deviceOverride === null && preferredMic && (name === 'OverconstrainedError' || name === 'NotFoundError')) {
         try {
           stream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS)
         } catch (e2) {

@@ -193,7 +193,23 @@ export function Measure() {
 
       <VocalBreak />
 
-      {l.semSinal && (
+      {l.procurandoMic && (
+        <p class="note" role="status">
+          O microfone em uso quase não capta som. Testando os outros microfones deste aparelho…
+        </p>
+      )}
+      {l.micTrocado && (
+        <div class="note" role="status">
+          <p>
+            O microfone anterior não estava ouvindo a sala. Passei a usar <strong>{l.micTrocado}</strong>, que está captando o som. A
+            escolha ficou salva para as próximas aulas.
+          </p>
+          <button class="btn btn-quiet" type="button" onClick={() => lesson.set({ micTrocado: null })}>
+            Ok
+          </button>
+        </div>
+      )}
+      {l.semSinal && !l.procurandoMic && (
         <div class="note note-error" role="alert">
           <p>
             <strong>O microfone não está ouvindo a sala.</strong> {SILENT_MIC_MESSAGE}

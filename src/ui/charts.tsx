@@ -41,6 +41,29 @@ function bin(points: Point[], t0: number, t1: number, cols: number) {
   return out
 }
 
+/** Menor abertura vertical do gráfico da aula, em dB. */
+const TL_MIN_SPAN = 12
+
+/**
+ * Escala vertical do gráfico da aula. Mostra os limiares quando os dados
+ * estão perto deles; quando estão longe (ex.: microfone de computador, que
+ * capta pouco), foca nos valores medidos para a variação aparecer.
+ */
+export function timelineRange(vals: number[], t: Thresholds) {
+  const dmin = Math.min(...vals)
+  const dmax = Math.max(...vals)
+  let lo = dmin - 2
+  let hi = dmax + 2
+  if (t.calmoAte - 10 < hi + 10) lo = Math.min(lo, t.calmoAte - 10)
+  if (t.altoDesde + 6 > lo - 10 && t.calmoAte < hi + 10) hi = Math.max(hi, t.altoDesde + 6)
+  if (hi - lo < TL_MIN_SPAN) {
+    const mid = (lo + hi) / 2
+    lo = mid - TL_MIN_SPAN / 2
+    hi = mid + TL_MIN_SPAN / 2
+  }
+  return { lo: Math.floor(lo / 5) * 5, hi: Math.ceil(hi / 5) * 5 }
+}
+
 export function Timeline({ points, thresholds, calibrated, height = 220, label, marks }: TimelineProps) {
   const valid = points.filter((p) => p.v !== null) as { t: number; v: number }[]
   if (valid.length < 2) {
@@ -56,11 +79,12 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label, 
   const ih = height - padT - padB
 
   const vals = valid.map((p) => p.v)
-  let lo = Math.min(...vals, thresholds.calmoAte - 10)
-  let hi = Math.max(...vals, thresholds.altoDesde + 6)
-  lo = Math.floor(lo / 5) * 5
-  hi = Math.ceil(hi / 5) * 5
+  const { lo, hi } = timelineRange(vals, thresholds)
   const y = (v: number) => padT + ih - ((v - lo) / (hi - lo)) * ih
+  const yc = (v: number) => Math.min(padT + ih, Math.max(padT, y(v)))
+  const inRange = (v: number) => v >= lo && v <= hi
+  const yAlto = yc(thresholds.altoDesde)
+  const yCalmo = yc(thresholds.calmoAte)
   const cols = Math.min(240, Math.max(30, valid.length))
   const bins = bin(points, t0, t1, cols)
   const x = (i: number) => padL + ((i + 0.5) / cols) * iw
@@ -123,14 +147,8 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label, 
           </pattern>
         </defs>
         {/* Fundo das faixas, bem leve */}
-        <rect x={padL} y={padT} width={iw} height={Math.max(0, y(thresholds.altoDesde) - padT)} class="zone zone-alto" />
-        <rect
-          x={padL}
-          y={y(thresholds.altoDesde)}
-          width={iw}
-          height={Math.max(0, y(thresholds.calmoAte) - y(thresholds.altoDesde))}
-          class="zone zone-atencao"
-        />
+        <rect x={padL} y={padT} width={iw} height={Math.max(0, yAlto - padT)} class="zone zone-alto" />
+        <rect x={padL} y={yAlto} width={iw} height={Math.max(0, yCalmo - yAlto)} class="zone zone-atencao" />
         {yTicks.map((v) => (
           <g key={v}>
             <line x1={padL} x2={padL + iw} y1={y(v)} y2={y(v)} class="grid" />
@@ -157,17 +175,32 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label, 
         <path d={peaks} class="peaks" />
         <path d={d} class="line" />
         {/* Limiares com rótulo direto */}
-        <line x1={padL} x2={padL + iw} y1={y(thresholds.altoDesde)} y2={y(thresholds.altoDesde)} class="th th-alto" />
-        <line x1={padL} x2={padL + iw} y1={y(thresholds.calmoAte)} y2={y(thresholds.calmoAte)} class="th th-calmo" />
-        <text x={padL + iw + 8} y={y(thresholds.altoDesde) - 4} class="th-label th-label-alto">
-          {calibrated ? `${thresholds.altoDesde} · alto` : 'alto'}
-        </text>
-        <text x={padL + iw + 8} y={y(thresholds.calmoAte) + 14} class="th-label th-label-calmo">
-          {calibrated ? `${thresholds.calmoAte} · calmo` : 'calmo'}
-        </text>
-        <text x={padL + iw + 8} y={(y(thresholds.altoDesde) + y(thresholds.calmoAte)) / 2 + 4} class="th-label th-label-atencao">
-          atenção
-        </text>
+        {inRange(thresholds.altoDesde) && (
+          <>
+            <line x1={padL} x2={padL + iw} y1={yAlto} y2={yAlto} class="th th-alto" />
+            <text x={padL + iw + 8} y={yAlto - 4} class="th-label th-label-alto">
+              {calibrated ? `${thresholds.altoDesde} · alto` : 'alto'}
+            </text>
+          </>
+        )}
+        {inRange(thresholds.calmoAte) && (
+          <>
+            <line x1={padL} x2={padL + iw} y1={yCalmo} y2={yCalmo} class="th th-calmo" />
+            <text x={padL + iw + 8} y={yCalmo + 14} class="th-label th-label-calmo">
+              {calibrated ? `${thresholds.calmoAte} · calmo` : 'calmo'}
+            </text>
+          </>
+        )}
+        {yCalmo - yAlto > 24 && (
+          <text x={padL + iw + 8} y={(yAlto + yCalmo) / 2 + 4} class="th-label th-label-atencao">
+            atenção
+          </text>
+        )}
+        {!inRange(thresholds.calmoAte) && hi < thresholds.calmoAte && (
+          <text x={padL + iw + 8} y={padT + 14} class="th-label th-label-calmo">
+            tudo calmo
+          </text>
+        )}
         {calibrated && (
           <text x={padL - 6} y={padT - 12} class="axis" text-anchor="end">
             dB(A)
@@ -204,6 +237,7 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label, 
       </svg>
       <figcaption class="small soft">
         Linha: nível médio. Traços finos: picos. {calibrated ? '' : 'Escala relativa: aparelho sem calibração. '}
+        {(!inRange(thresholds.calmoAte) || !inRange(thresholds.altoDesde)) && 'Escala ajustada aos valores medidos. '}
         {gaps.length > 0 && 'Hachurado: período sem medição.'}
       </figcaption>
     </figure>

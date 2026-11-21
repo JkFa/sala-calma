@@ -23,6 +23,7 @@ import { activityAt, addMark, type ActivityId, type ActivityKey } from '../lib/a
 import { percentile } from '../lib/levels'
 import { VocalStreak } from '../lib/vocalbreak'
 import { createStore } from './store'
+import { findWorkingMic } from '../audio/probe'
 
 export type Status = 'parado' | 'iniciando' | 'medindo' | 'pausado' | 'interrompido'
 
@@ -55,6 +56,10 @@ export interface LessonState {
   semSinal: boolean
   /** Nome do microfone em uso. */
   microfone: string
+  /** Testando os outros microfones à procura de um que ouça a sala. */
+  procurandoMic: boolean
+  /** O app trocou sozinho para este microfone (para avisar o professor). */
+  micTrocado: string | null
   /** Momento da aula em vigor (marcado pelo professor). */
   activity: ActivityKey
   /** Tempo seguido com o ruído de fundo acima do limiar de esforço vocal. */
@@ -83,6 +88,8 @@ export const lesson = createStore<LessonState>({
   leqAula: null,
   semSinal: false,
   microfone: '',
+  procurandoMic: false,
+  micTrocado: null,
   activity: 'sem-marcacao',
   vocalStreakMs: 0,
   pausaVocal: false,
@@ -96,6 +103,39 @@ settings.subscribe((st) => setPreferredMic(st.microfoneId))
 // Tempo seguido sem sinal nenhum do microfone.
 let silentMs = 0
 const SILENT_ALERT_MS = 3000
+// Troca automática de microfone: quando começou a medir com o atual e quais já foram descartados.
+let micSince = 0
+let probing = false
+const micsDescartados = new Set<string>()
+/** Depois de 5 s, se o nível mal se mexeu (< 3 dB), já vale procurar outro microfone. */
+const EARLY_CHECK_MS = 5000
+
+function maybeFindMic(semSinal: boolean, wave: number[]) {
+  if (probing) return
+  const label = meter.deviceLabel
+  if (micsDescartados.has(label)) return
+  let suspeito = semSinal
+  if (!suspeito && Date.now() - micSince >= EARLY_CHECK_MS && wave.length >= 32) {
+    const last = wave.slice(-32)
+    suspeito = Math.max(...last) - Math.min(...last) < FLAT_DB
+  }
+  if (!suspeito) return
+  probing = true
+  micsDescartados.add(label)
+  lesson.set({ procurandoMic: true })
+  void findWorkingMic(label)
+    .then(async (best) => {
+      const st = lesson.get()
+      if (best && st.session && (st.status === 'medindo' || st.status === 'interrompido')) {
+        await switchMic(best.id)
+        lesson.set({ micTrocado: best.label })
+      }
+    })
+    .finally(() => {
+      probing = false
+      lesson.set({ procurandoMic: false })
+    })
+}
 let seg: Segment | null = null
 let nextReason: GapReason | null = null
 let lastLevelAt = 0
@@ -182,6 +222,10 @@ function onLevel(e: LevelEvent) {
     secAcc = []
   }
 
+  const wave = [...st.wave.slice(-(WAVE_MAX - 1)), lv]
+  const semSinal = silentMs >= SILENT_ALERT_MS || isFlat(recent)
+  maybeFindMic(semSinal, wave)
+
   lesson.set({
     status: 'medindo',
     level,
@@ -189,9 +233,9 @@ function onLevel(e: LevelEvent) {
     band: bandOf(level, t),
     lightBand,
     recent,
-    wave: [...st.wave.slice(-(WAVE_MAX - 1)), lv],
+    wave,
     leqAula: 10 * Math.log10(leqE / leqN),
-    semSinal: silentMs >= SILENT_ALERT_MS || isFlat(recent),
+    semSinal,
     microfone: meter.deviceLabel,
     error: null,
     calmMs: st.calmMs + (bandOf(lv, t) === 'calmo' ? WINDOW_MS : 0),
@@ -306,6 +350,7 @@ export async function startLesson(turma: string, disciplina: string) {
     wave: [],
     leqAula: null,
     semSinal: false,
+    micTrocado: null,
     level: null,
     slow: null,
     lightBand: null,
@@ -323,13 +368,16 @@ export async function startLesson(turma: string, disciplina: string) {
   leqE = 0
   leqN = 0
   silentMs = 0
+  micsDescartados.clear()
   try {
     await meter.start()
+    micSince = Date.now()
   } catch (e) {
     lesson.set({ status: 'parado', session: null, error: e as MeterError })
     return false
   }
   lastLevelAt = Date.now()
+  micSince = Date.now()
   lesson.set({ status: 'medindo' })
   await saveSession(s)
   // Pede ao navegador para não apagar os dados sozinho (Chrome/Firefox/Safari).
@@ -359,6 +407,7 @@ export async function resumeLesson() {
     return
   }
   lastLevelAt = Date.now()
+  micSince = Date.now()
   lesson.set({ status: 'medindo' })
   void requestWakeLock()
 }
@@ -407,6 +456,7 @@ export async function continuePending() {
     return
   }
   lastLevelAt = Date.now()
+  micSince = Date.now()
   lesson.set({ status: 'medindo' })
   startTimers()
   void requestWakeLock()
@@ -483,14 +533,16 @@ export async function switchMic(id: string) {
   if (!st.session || (st.status !== 'medindo' && st.status !== 'interrompido')) return
   meter.stop()
   silentMs = 0
-  lesson.set({ status: 'iniciando', semSinal: false, wave: [] })
+  lesson.set({ status: 'iniciando', semSinal: false, wave: [], recent: [], micTrocado: null })
   try {
     await meter.start()
+    micSince = Date.now()
   } catch (e) {
     lesson.set({ status: 'pausado', error: e as MeterError })
     return
   }
   lastLevelAt = Date.now()
+  micSince = Date.now()
   lesson.set({ status: 'medindo', microfone: meter.deviceLabel })
 }
 

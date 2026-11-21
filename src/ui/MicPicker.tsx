@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { listMics, Meter, type MicInfo } from '../audio/meter'
+import { findWorkingMic } from '../audio/probe'
 import { lesson, switchMic } from '../state/lesson'
 import { settings } from '../state/settings'
 import { useStore } from '../state/store'
@@ -17,6 +18,8 @@ type TestState =
   | { phase: 'parado' }
   | { phase: 'testando'; level: number; min: number; max: number }
   | { phase: 'ok' | 'falhou'; mic: string; swing: number }
+  | { phase: 'procurando'; mic: string }
+  | { phase: 'trocado'; mic: string; novo: string }
   | { phase: 'erro'; message: string }
 
 function MicTest({ onDone }: { onDone: () => void }) {
@@ -42,11 +45,24 @@ function MicTest({ onDone }: { onDone: () => void }) {
       setSt({ phase: 'erro', message: (e as Error).message })
       return
     }
-    setTimeout(() => {
+    setTimeout(async () => {
       const mic = m.deviceLabel
       m.stop()
       const swing = Number.isFinite(max - min) ? max - min : 0
-      setSt({ phase: swing >= TEST_MIN_SWING ? 'ok' : 'falhou', mic, swing })
+      if (swing >= TEST_MIN_SWING) {
+        setSt({ phase: 'ok', mic, swing })
+        onDone()
+        return
+      }
+      // Não reagiu: testa os outros microfones e escolhe o que ouve a sala.
+      setSt({ phase: 'procurando', mic })
+      const best = await findWorkingMic(mic)
+      if (best) {
+        await switchMic(best.id)
+        setSt({ phase: 'trocado', mic, novo: best.label })
+      } else {
+        setSt({ phase: 'falhou', mic, swing })
+      }
       onDone()
     }, TEST_MS)
   }
@@ -64,6 +80,13 @@ function MicTest({ onDone }: { onDone: () => void }) {
       </div>
     )
   }
+  if (st.phase === 'procurando') {
+    return (
+      <p class="small mic-test" role="status">
+        “{st.mic || 'Este microfone'}” não reagiu. Testando os outros microfones deste aparelho…
+      </p>
+    )
+  }
   return (
     <div class="mic-test">
       <button type="button" class="btn" onClick={() => void run()}>
@@ -72,6 +95,12 @@ function MicTest({ onDone }: { onDone: () => void }) {
       {st.phase === 'ok' && (
         <p class="small text-calmo" role="status">
           Funcionando: “{st.mic || 'microfone'}” captou o som (variação de {Math.round(st.swing)} dB).
+        </p>
+      )}
+      {st.phase === 'trocado' && (
+        <p class="small text-calmo" role="status">
+          “{st.mic || 'O microfone anterior'}” não ouvia a sala. Passei a usar “{st.novo}”, que está captando som. A escolha ficou
+          salva.
         </p>
       )}
       {st.phase === 'falhou' && (
