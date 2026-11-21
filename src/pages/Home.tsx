@@ -112,7 +112,8 @@ export function Home() {
           </li>
           <li>
             <strong>Faz o relatório da aula.</strong> Média, picos, ruído de fundo, tempo em cada faixa e o Tempo de Risco Vocal:
-            quanto tempo o ruído ficou no nível em que a gente tende a forçar a voz.
+            quanto tempo o ruído ficou no nível em que a gente tende a forçar a voz. Se você marcar os momentos (explicação,
+            grupo, prova), ele mostra qual pesa mais.
           </li>
           <li>
             <strong>Mostra a evolução.</strong> Semana a semana e turma a turma: o Tempo de Risco Vocal somado e se a turma está
