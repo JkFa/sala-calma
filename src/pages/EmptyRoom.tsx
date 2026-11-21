@@ -24,6 +24,9 @@ import { dateShort, dec, hhmm } from '../ui/format'
 import { IconDownload } from '../ui/icons'
 import { LessonsTabs } from './Lessons'
 import { MeterError } from '../audio/meter'
+import { ShareButtons } from '../ui/ShareButtons'
+import { appUrl, roomSummaryText } from '../lib/share'
+import { APP } from '../config'
 
 const VERDICT: Record<RoomVerdict, { title: string; text: (m: RoomMeasurement) => string; cls: string }> = {
   'sem-calibracao': {
@@ -160,6 +163,14 @@ function Result({ m, onDelete }: { m: RoomMeasurement; onDelete?: () => void }) 
           Condições: {m.condicoes.map((c) => CONDICOES.find((x) => x.id === c)?.label.toLowerCase()).join(', ')}.
         </p>
       )}
+      <div class="no-print">
+        <ShareButtons
+          sendLabel="Enviar"
+          title={`${APP.name} · Sala vazia · ${m.sala || 'sem nome'}`}
+          text={roomSummaryText(m, appUrl())}
+          file={() => ({ name: fileName(m), json: JSON.stringify(roomToExport(m)) })}
+        />
+      </div>
       <div class="row no-print">
         <button class="btn" onClick={() => download(fileName(m), JSON.stringify(roomToExport(m)), 'application/json')}>
           <IconDownload /> Arquivo para a escola (JSON)

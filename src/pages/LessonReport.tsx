@@ -65,6 +65,8 @@ import { dateLong, dec, dur, hhmm } from '../ui/format'
 import { IconDownload, IconPrint } from '../ui/icons'
 import { go } from '../ui/router'
 import { APP } from '../config'
+import { ShareButtons } from '../ui/ShareButtons'
+import { appUrl, lessonSummaryText } from '../lib/share'
 
 const GAP_LABEL = {
   pausa: 'pausa sua',
@@ -233,6 +235,16 @@ export function LessonReport({ id }: { id: string }) {
 
       <section class="exports no-print">
         <h2>Levar para fora do aparelho</h2>
+        <ShareButtons
+          title={`${APP.name} · ${title}`}
+          text={lessonSummaryText(s, r, appUrl())}
+          file={() => ({ name: `${fileBase(s)}.json`, json: JSON.stringify(toExport(s, r)) })}
+        />
+        <p class="small soft">
+          Abre o menu de compartilhar do aparelho (WhatsApp, e-mail…) com o arquivo para a tela <a href="#/escola">Escola</a> e um resumo
+          da aula. Para mandar em PDF: “Imprimir ou salvar PDF”, escolha “Salvar como PDF” e compartilhe o arquivo salvo.
+        </p>
+        <h3 class="exports-sub">Baixar</h3>
         <div class="row">
           <button class="btn" onClick={() => window.print()}>
             <IconPrint /> Imprimir ou salvar PDF
@@ -248,8 +260,7 @@ export function LessonReport({ id }: { id: string }) {
           </button>
         </div>
         <p class="small soft">
-          O arquivo JSON leva só os números por segundo, a turma, a disciplina e os momentos marcados. Entregue para a coordenação abrir na tela{' '}
-          <a href="#/escola">Escola</a>.
+          O arquivo para a escola leva só os números por segundo, a turma, a disciplina e os momentos marcados. Nada de áudio.
         </p>
         <button class="btn btn-danger" onClick={remove}>
           {confirmDelete ? 'Toque de novo para apagar de vez' : 'Apagar esta aula'}

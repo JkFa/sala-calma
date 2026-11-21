@@ -32,8 +32,9 @@ export function Privacy() {
 
       <h2>Quando os dados saem do aparelho</h2>
       <p>
-        Só quando você exporta (PDF, CSV ou JSON) e entrega o arquivo para alguém. O arquivo leva os números, a turma e a disciplina.
-        Não leva o seu nome. A tela Escola abre esses arquivos no próprio navegador de quem abre, sem enviar para servidor nenhum.
+        Só quando você exporta (PDF, CSV ou JSON) ou toca em “Enviar” / “Compartilhar resumo”. Enviar abre o menu de compartilhar do
+        próprio aparelho: o arquivo vai direto do seu celular para o app que você escolher (WhatsApp, e-mail…), sem passar por nenhum
+        servidor do {APP.name}. O arquivo leva os números, a turma, a disciplina e os momentos marcados. Não leva o seu nome. A tela Escola abre esses arquivos no próprio navegador de quem abre, sem enviar para servidor nenhum.
       </p>
 
       <h2>Servidor</h2>

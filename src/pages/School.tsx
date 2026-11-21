@@ -257,19 +257,20 @@ export function School() {
         <h1>Escola</h1>
         <p class="lead no-print">
           Junte os arquivos que os professores exportaram (botão “Arquivo para a escola”, no relatório de cada aula e na medição da sala vazia) e veja onde e
-          quando a acústica pesa mais. Os arquivos são lidos aqui mesmo, neste navegador. Nada é enviado.
+          quando a acústica pesa mais. Vale arquivo .json ou .txt (o Android envia como .txt) e arquivo com várias aulas. Os
+          arquivos são lidos aqui mesmo, neste navegador. Nada é enviado.
         </p>
       </header>
 
       <div class="dropzone no-print">
         <label for="files" class="btn btn-primary">
-          Escolher arquivos .json
+          Escolher arquivos
         </label>
         <input
           id="files"
           class="visually-hidden"
           type="file"
-          accept="application/json,.json"
+          accept="application/json,.json,text/plain,.txt"
           multiple
           onChange={(e) => {
             void onFiles(e.currentTarget.files)

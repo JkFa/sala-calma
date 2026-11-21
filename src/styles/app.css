@@ -1170,3 +1170,39 @@ section {
     min-width: 0;
   }
 }
+
+/* ---------- Compartilhar ---------- */
+
+.share .row {
+  margin-bottom: 0.3rem;
+}
+.share [role='status']:empty {
+  display: none;
+}
+.share [role='status'] {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.8rem;
+  max-width: var(--measure);
+}
+.exports-sub {
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  font-weight: 600;
+  margin: 1.5rem 0 0;
+}
+.send-many {
+  border-top: 1px solid var(--rule);
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+}
+.send-many .grid-2 {
+  align-items: end;
+}
+.share-msg:empty {
+  display: none;
+}
+.share-msg {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.8rem;
+  margin-top: 0.6rem;
+}
