@@ -9,6 +9,7 @@ import { WINDOW_MS } from '../config'
 import type { Calibration } from './calibration'
 import { applyOffset } from './calibration'
 import { leq, l10, l90, max, rollingL90 } from './levels'
+import type { Mark } from './activities'
 
 export type GapReason = 'pausa' | 'interrompido' | 'segundo-plano' | 'permissao'
 
@@ -42,6 +43,8 @@ export interface Session {
   thresholds: Thresholds
   segments: Segment[]
   gaps: Gap[]
+  /** Momentos da aula marcados pelo professor (opcional; aulas antigas não têm). */
+  marks?: Mark[]
 }
 
 export type Band = 'calmo' | 'atencao' | 'alto'
@@ -71,6 +74,7 @@ export function newSession(
     thresholds: { ...init.thresholds },
     segments: [],
     gaps: [],
+    marks: [],
   }
 }
 
