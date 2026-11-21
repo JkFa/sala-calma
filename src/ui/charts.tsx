@@ -3,6 +3,7 @@
  */
 import type { Band, Thresholds } from '../lib/session'
 import { BAND_LABEL, dur, hhmm } from './format'
+import { ACTIVITY_LABEL, activitySpans, type Mark } from '../lib/activities'
 
 export interface Point {
   t: number
@@ -16,6 +17,8 @@ interface TimelineProps {
   height?: number
   /** Rótulo acessível. */
   label: string
+  /** Momentos da aula, para a faixa sob o gráfico. */
+  marks?: Mark[]
 }
 
 const W = 720
@@ -38,16 +41,16 @@ function bin(points: Point[], t0: number, t1: number, cols: number) {
   return out
 }
 
-export function Timeline({ points, thresholds, calibrated, height = 220, label }: TimelineProps) {
+export function Timeline({ points, thresholds, calibrated, height = 220, label, marks }: TimelineProps) {
   const valid = points.filter((p) => p.v !== null) as { t: number; v: number }[]
   if (valid.length < 2) {
     return <p class="soft">Ainda não há medição suficiente para o gráfico.</p>
   }
   const t0 = points[0].t
   const t1 = points[points.length - 1].t
-  const padL = calibrated ? 34 : 8
-  const padR = 92
-  const padT = 14
+  const padL = calibrated ? 44 : 8
+  const padR = 110
+  const padT = calibrated ? 24 : 14
   const padB = 28
   const iw = W - padL - padR
   const ih = height - padT - padB
@@ -91,15 +94,32 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label }
   const first = Math.ceil(t0 / (stepMin * 60000)) * stepMin * 60000
   for (let t = first; t <= t1; t += stepMin * 60000) ticks.push(t)
 
+  const spans = marks && marks.length ? activitySpans(marks, t0, t1) : null
+  const stripY = height + 2
+  const stripH = 22
+  const totalH = spans ? height + stripH + 8 : height
+
   const yTicks: number[] = []
   if (calibrated) for (let v = lo; v <= hi; v += hi - lo > 30 ? 10 : 5) yTicks.push(v)
 
   return (
     <figure class="chart">
-      <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
+      <svg
+        viewBox={`0 0 ${W} ${totalH}`}
+        role="img"
+        aria-label={
+          spans
+            ? `${label}. Momentos: ${spans.filter((s) => s.kind !== 'sem-marcacao').map((s) => `${ACTIVITY_LABEL[s.kind]} de ${hhmm(s.a)} a ${hhmm(s.b)}`).join('; ')}`
+            : label
+        }
+        preserveAspectRatio="xMidYMid meet"
+      >
         <defs>
           <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="6" stroke="var(--gap)" stroke-width="1.2" />
+          </pattern>
+          <pattern id="dots" width="5" height="5" patternUnits="userSpaceOnUse">
+            <circle cx="2.5" cy="2.5" r="0.8" fill="var(--rule-strong)" />
           </pattern>
         </defs>
         {/* Fundo das faixas, bem leve */}
@@ -149,9 +169,37 @@ export function Timeline({ points, thresholds, calibrated, height = 220, label }
           atenção
         </text>
         {calibrated && (
-          <text x={padL - 6} y={padT - 3} class="axis" text-anchor="end">
+          <text x={padL - 6} y={padT - 12} class="axis" text-anchor="end">
             dB(A)
           </text>
+        )}
+        {spans && (
+          <g class="act-strip">
+            {spans.map((s, i) => {
+              const xa = xt(s.a)
+              const w = Math.max(1, xt(s.b) - xa)
+              const marked = spans.slice(0, i).filter((p) => p.kind !== 'sem-marcacao').length
+              return (
+                <g key={s.a}>
+                  <rect
+                    x={xa}
+                    y={stripY}
+                    width={w}
+                    height={stripH}
+                    class={`act ${s.kind === 'sem-marcacao' ? 'act-none' : `act-${marked % 2}`}`}
+                  />
+                  {s.kind !== 'sem-marcacao' && w > 120 && (
+                    <text x={xa + 6} y={stripY + 15} class="act-label">
+                      {ACTIVITY_LABEL[s.kind]}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+            <text x={padL + iw + 8} y={stripY + 15} class="axis">
+              momentos
+            </text>
+          </g>
         )}
       </svg>
       <figcaption class="small soft">

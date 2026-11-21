@@ -2,7 +2,65 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { deleteSession, getSession } from '../lib/db'
 import { download, fileBase, toCSV, toExport } from '../lib/exporting'
 import { computeReport, perSecond, type Session } from '../lib/session'
-import { BandBar, Timeline } from '../ui/charts'
+import { BandBar, HBar, Timeline } from '../ui/charts'
+import { ACTIVITY_LABEL, loudestActivity, statsByActivity, type ActivityStats } from '../lib/activities'
+
+function ActivitySection({ stats: all, calibrated }: { stats: ActivityStats[]; calibrated: boolean }) {
+  // Um instante antes do primeiro toque não é informação: esconde.
+  const stats = all.filter((s) => s.kind !== 'sem-marcacao' || s.measuredMs >= 5000)
+  const loud = loudestActivity(stats)
+  const quiet = stats.filter((s) => s.kind !== 'sem-marcacao' && s.measuredMs >= 120_000).sort((a, b) => a.pctAlto - b.pctAlto)[0]
+  const maxPct = Math.max(1, ...stats.map((s) => s.pctAlto))
+  return (
+    <section>
+      <h2>Por momento da aula</h2>
+      {loud && (
+        <p class="insight">
+          {ACTIVITY_LABEL[loud.kind]} foi o momento mais barulhento: {Math.round(loud.pctAlto)}% do tempo na faixa alta
+          {quiet && quiet.kind !== loud.kind ? `, contra ${Math.round(quiet.pctAlto)}% em ${ACTIVITY_LABEL[quiet.kind].toLowerCase()}` : ''}.
+        </p>
+      )}
+      <table class="ledger activity-table">
+        <thead>
+          <tr>
+            <th scope="col">Momento</th>
+            <th scope="col" class="r">
+              Tempo
+            </th>
+            <th scope="col">Faixa alta</th>
+            {calibrated && (
+              <th scope="col" class="r">
+                Média
+              </th>
+            )}
+            <th scope="col" class="r">
+              Risco Vocal
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {stats.map((s) => (
+            <tr key={s.kind}>
+              <th scope="row" class={s.kind === 'sem-marcacao' ? 'soft' : ''}>
+                {ACTIVITY_LABEL[s.kind]}
+              </th>
+              <td class="r num">{dur(s.measuredMs)}</td>
+              <td class="bar-cell">
+                <HBar value={s.pctAlto} max={maxPct} band="alto" />
+                <span class="num">{Math.round(s.pctAlto)}%</span>
+              </td>
+              {calibrated && <td class="r num">{dec(s.leq)} dB(A)</td>}
+              <td class="r num">{dur(s.vocalMs)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p class="small soft">
+        Trechos com menos de 2 minutos entram na tabela, mas não no destaque. “Sem marcação” é o tempo antes do primeiro toque.
+      </p>
+    </section>
+  )
+}
 import { dateLong, dec, dur, hhmm } from '../ui/format'
 import { IconDownload, IconPrint } from '../ui/icons'
 import { go } from '../ui/router'
@@ -24,6 +82,7 @@ export function LessonReport({ id }: { id: string }) {
 
   const r = useMemo(() => (s ? computeReport(s) : null), [s])
   const points = useMemo(() => (s ? perSecond(s) : []), [s])
+  const acts = useMemo(() => (s?.marks?.length ? statsByActivity(s) : null), [s])
 
   if (s === undefined) return <p class="soft">Carregando…</p>
   if (s === null || !r)
@@ -116,13 +175,21 @@ export function LessonReport({ id }: { id: string }) {
 
           <section>
             <h2>Linha do tempo</h2>
-            <Timeline points={points} thresholds={s.thresholds} calibrated={cal} label={`Nível da sala de ${hhmm(s.startedAt)} até o fim da aula`} />
+            <Timeline
+              points={points}
+              thresholds={s.thresholds}
+              calibrated={cal}
+              marks={s.marks}
+              label={`Nível da sala de ${hhmm(s.startedAt)} até o fim da aula`}
+            />
           </section>
 
           <section>
             <h2>Tempo em cada faixa</h2>
             <BandBar ms={r.bandMs} />
           </section>
+
+          {acts && <ActivitySection stats={acts} calibrated={cal} />}
 
           <section class="vocal">
             <h2>Tempo de Risco Vocal</h2>
@@ -181,7 +248,7 @@ export function LessonReport({ id }: { id: string }) {
           </button>
         </div>
         <p class="small soft">
-          O arquivo JSON leva só os números por segundo, a turma e a disciplina. Entregue para a coordenação abrir na tela{' '}
+          O arquivo JSON leva só os números por segundo, a turma, a disciplina e os momentos marcados. Entregue para a coordenação abrir na tela{' '}
           <a href="#/escola">Escola</a>.
         </p>
         <button class="btn btn-danger" onClick={remove}>

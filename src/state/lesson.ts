@@ -18,6 +18,7 @@ import {
   type Session,
 } from '../lib/session'
 import { settings } from './settings'
+import { activityAt, addMark, type ActivityId, type ActivityKey } from '../lib/activities'
 import { createStore } from './store'
 
 export type Status = 'parado' | 'iniciando' | 'medindo' | 'pausado' | 'interrompido'
@@ -39,6 +40,8 @@ export interface LessonState {
   pendente: Session | null
   /** Últimos ~2 min (1 ponto/s) para o gráfico ao vivo. */
   recent: number[]
+  /** Momento da aula em vigor (marcado pelo professor). */
+  activity: ActivityKey
 }
 
 export const lesson = createStore<LessonState>({
@@ -53,6 +56,7 @@ export const lesson = createStore<LessonState>({
   bateriaBaixa: false,
   pendente: null,
   recent: [],
+  activity: 'sem-marcacao',
 })
 
 const meter = new Meter()
@@ -217,7 +221,7 @@ export async function startLesson(turma: string, disciplina: string) {
   const st = settings.get()
   const s = newSession({ turma, disciplina, calibration: st.calibration, thresholds: st.thresholds })
   settings.set({ ultimaTurma: turma, ultimaDisciplina: disciplina })
-  lesson.set({ status: 'iniciando', session: s, error: null, recent: [], level: null, slow: null, lightBand: null, band: null })
+  lesson.set({ status: 'iniciando', session: s, error: null, recent: [], level: null, slow: null, lightBand: null, band: null, activity: 'sem-marcacao' })
   seg = null
   nextReason = null
   lastLevelAt = 0
@@ -287,7 +291,8 @@ export async function checkPending() {
 export async function continuePending() {
   const p = lesson.get().pendente
   if (!p) return
-  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [] })
+  p.marks ??= []
+  lesson.set({ session: p, pendente: null, status: 'iniciando', recent: [], activity: activityAt(p.marks, Date.now()) })
   seg = null
   nextReason = 'interrompido'
   try {
@@ -354,4 +359,13 @@ export async function measureForCalibration(
   const values = await measureWindows(seconds, onProgress)
   const energy = values.reduce((a, v) => a + Math.pow(10, v / 10), 0) / values.length
   return 10 * Math.log10(energy)
+}
+
+/** Marca o momento da aula (explicação, grupo…) a partir de agora. */
+export function markActivity(kind: ActivityId) {
+  const s = lesson.get().session
+  if (!s) return
+  s.marks = addMark(s.marks ?? [], kind, Date.now())
+  lesson.set({ activity: activityAt(s.marks, Date.now()) })
+  void saveSession(s)
 }

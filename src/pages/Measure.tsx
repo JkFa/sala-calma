@@ -15,6 +15,35 @@ import { BAND_HINT, BAND_LABEL, clock, dec } from '../ui/format'
 import { BandShape, IconLight, IconPause, IconPlay, IconStop } from '../ui/icons'
 import { go } from '../ui/router'
 import { isIOS } from '../state/pwa'
+import { ACTIVITIES } from '../lib/activities'
+import { markActivity } from '../state/lesson'
+
+/** "O que está acontecendo agora?" — marca o momento da aula. */
+function ActivityPicker() {
+  const l = useStore(lesson)
+  return (
+    <fieldset class="activities">
+      <legend>O que está acontecendo agora?</legend>
+      <div class="activity-row">
+        {ACTIVITIES.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            class="activity-btn"
+            aria-pressed={l.activity === a.id}
+            title={a.hint}
+            onClick={() => markActivity(a.id)}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+      <p class="small soft">
+        Opcional. Um toque marca o início do momento; vale até o próximo. Tocou errado? Toque no certo em até 10 segundos.
+      </p>
+    </fieldset>
+  )
+}
 
 function Elapsed({ since }: { since: number }) {
   const [, tick] = useState(0)
@@ -180,6 +209,8 @@ export function Measure() {
           <IconLight /> Projetar semáforo
         </a>
       </div>
+
+      <ActivityPicker />
 
       {l.error && (
         <div class="note note-error" role="alert">
