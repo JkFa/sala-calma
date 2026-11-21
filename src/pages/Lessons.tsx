@@ -3,6 +3,23 @@ import { listSessions } from '../lib/db'
 import { computeReport, type Session } from '../lib/session'
 import { dateShort, dec, dur, hhmm } from '../ui/format'
 
+export function LessonsTabs({ current }: { current: 'lista' | 'evolucao' | 'salas' }) {
+  const tabs = [
+    { id: 'lista', href: '#/aulas', label: 'Aulas' },
+    { id: 'evolucao', href: '#/evolucao', label: 'Evolução' },
+    { id: 'salas', href: '#/sala-vazia', label: 'Sala vazia' },
+  ] as const
+  return (
+    <nav class="subtabs" aria-label="Aulas e medições">
+      {tabs.map((t) => (
+        <a key={t.id} href={t.href} aria-current={current === t.id ? 'page' : undefined}>
+          {t.label}
+        </a>
+      ))}
+    </nav>
+  )
+}
+
 interface Row {
   s: Session
   leq: number
@@ -39,6 +56,7 @@ export function Lessons() {
 
   return (
     <div class="lessons">
+      <LessonsTabs current="lista" />
       <h1>Aulas</h1>
       {rows.length === 0 ? (
         <div class="empty">
